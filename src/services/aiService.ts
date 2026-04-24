@@ -50,7 +50,8 @@ export const aiService = {
   async chatStream(
     message: string,
     history: ChatMessage[],
-    onToken: (token: string) => void
+    onToken: (token: string) => void,
+    signal?: AbortSignal
   ): Promise<void> {
     const token = await SecureStore.getItemAsync("accessToken");
     const appKey = process.env.EXPO_PUBLIC_APP_KEY ?? "";
@@ -63,9 +64,14 @@ export const aiService = {
         "x-app-key": appKey,
       },
       body: JSON.stringify({ message, history }),
+      signal,
     });
 
-    if (!response.ok) throw new Error("Stream request failed");
+    if (!response.ok) {
+      let errMsg = "Stream request failed";
+      try { errMsg = (await response.json())?.message || errMsg; } catch { /* ignore */ }
+      throw new Error(errMsg);
+    }
 
     // React Native / Hermes does not expose response.body as a ReadableStream.
     // Fall back to reading the full SSE text at once and replaying the tokens.
@@ -73,16 +79,16 @@ export const aiService = {
       const text = await response.text();
       for (const line of text.split("\n")) {
         if (!line.startsWith("data: ")) continue;
-        try {
-          const parsed = JSON.parse(line.slice(6));
-          if (parsed.error) throw new Error(parsed.error);
-          if (parsed.token) onToken(parsed.token);
-        } catch { /* malformed line — skip */ }
+        let parsed: Record<string, unknown>;
+        try { parsed = JSON.parse(line.slice(6)); } catch { continue; }
+        // Server-side errors must propagate — never silently drop them
+        if (parsed.error) throw new Error(parsed.error as string);
+        if (parsed.token) onToken(parsed.token as string);
       }
       return;
     }
 
-    // Full streaming path (browser / environments that expose ReadableStream).
+    // Full streaming path (environments that expose ReadableStream).
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -95,17 +101,16 @@ export const aiService = {
       buffer = lines.pop() ?? "";
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
-        try {
-          const parsed = JSON.parse(line.slice(6));
-          if (parsed.error) throw new Error(parsed.error);
-          if (parsed.done) return;
-          if (parsed.token) onToken(parsed.token);
-        } catch { /* malformed chunk — skip */ }
+        let parsed: Record<string, unknown>;
+        try { parsed = JSON.parse(line.slice(6)); } catch { continue; }
+        if (parsed.error) throw new Error(parsed.error as string);
+        if (parsed.done) return;
+        if (parsed.token) onToken(parsed.token as string);
       }
     }
   },
 
-  async transcribeVoice(uri: string): Promise<string> {
+  async transcribeVoice(uri: string, signal?: AbortSignal): Promise<string> {
     const token = await SecureStore.getItemAsync("accessToken");
     const appKey = process.env.EXPO_PUBLIC_APP_KEY ?? "";
 
@@ -119,11 +124,14 @@ export const aiService = {
         "x-app-key": appKey,
       },
       body: formData,
+      signal,
     });
 
     const json = await response.json();
     if (!response.ok) throw new Error(json?.message || "Transcription failed");
-    return json.data.transcript as string;
+    const transcript: string = json?.data?.transcript ?? "";
+    if (!transcript.trim()) throw new Error("No audio recorded");
+    return transcript;
   },
 };
 
@@ -138,9 +146,14 @@ export async function startRecording(): Promise<Audio.Recording> {
   return recording;
 }
 
-export async function stopAndTranscribe(recording: Audio.Recording): Promise<string> {
+export async function stopAndTranscribe(
+  recording: Audio.Recording,
+  signal?: AbortSignal
+): Promise<string> {
   await recording.stopAndUnloadAsync();
+  // Restore normal audio mode so playback works after recording
+  await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
   const uri = recording.getURI();
   if (!uri) throw new Error("No audio");
-  return aiService.transcribeVoice(uri);
+  return aiService.transcribeVoice(uri, signal);
 }

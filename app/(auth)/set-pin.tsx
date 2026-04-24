@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { Button } from "../../src/components/common/Button";
@@ -96,6 +96,19 @@ export default function SetPinScreen() {
               : "Make sure you remember this PIN — you go need am every time."}
           </Text>
 
+          {step === "confirm" && (
+            <Text style={styles.termsText}>
+              By creating an account, you agree to our{" "}
+              <Text
+                style={styles.termsLink}
+                onPress={() => Linking.openURL("https://github.com/YOUR_USERNAME/YOUR_REPO/blob/main/TERMS.md")}
+              >
+                Terms of Service
+              </Text>
+              .
+            </Text>
+          )}
+
           <Button
             title={step === "create" ? "Continue" : "Create Account"}
             onPress={handleNext}
@@ -116,4 +129,6 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
     subtitle: { fontSize: 16, color: colors.textSecondary, lineHeight: 24 },
     pinWrap: { marginBottom: 32 },
     tip: { fontSize: 13, color: colors.textMuted, textAlign: "center", marginBottom: 32, lineHeight: 20 },
+    termsText: { fontSize: 12, color: colors.textMuted, textAlign: "center", marginBottom: 16, lineHeight: 18 },
+    termsLink: { color: colors.primary, fontWeight: "600", textDecorationLine: "underline" },
   });

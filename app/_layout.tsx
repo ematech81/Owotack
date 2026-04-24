@@ -51,7 +51,7 @@ export default function RootLayout() {
     }
 
     if (isAuthenticated) {
-      const allowedOutsideTabs = ["subscribe"];
+      const allowedOutsideTabs = ["subscribe", "subscription"];
       if (!inTabs && !allowedOutsideTabs.includes(segments[0] as string)) router.replace("/(tabs)");
       return;
     }
@@ -94,6 +94,7 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="subscribe" />
+          <Stack.Screen name="subscription/verify" />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

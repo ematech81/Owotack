@@ -30,6 +30,7 @@ export const syncService = {
           inputMethod: sale.inputMethod,
           rawInput: sale.rawInput,
           notes: sale.notes,
+          customerName: sale.customerName,
           localId: sale.localId,
         });
         await salesDb.markSynced(sale.localId!, res.data.data._id);

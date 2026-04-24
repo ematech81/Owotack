@@ -12,6 +12,8 @@ import { aiService, AdvisorCard, ChatMessage, startRecording, stopAndTranscribe 
 import { useTheme } from "../../src/hooks/useTheme";
 import { AppStatusBar } from "../../src/components/common/AppStatusBar";
 import { chatErrorMessage, voiceErrorMessage } from "../../src/utils/errorMessages";
+import { checkAIAccess } from "../../src/utils/usageLimits";
+import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";
 
 type RecState = "idle" | "recording" | "processing";
 
@@ -73,9 +75,15 @@ export default function AdvisorScreen() {
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [recState, setRecState] = useState<RecState>("idle");
   const [greetingLoaded, setGreetingLoaded] = useState(false);
+  const [upgradeVisible, setUpgradeVisible] = useState(false);
+
+  const planId = user?.subscription?.plan ?? "free";
+  const hasAIAccess = checkAIAccess(planId);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const isSendingRef = useRef(false);
 
   // Pulse animation for recording
   useEffect(() => {
@@ -91,6 +99,17 @@ export default function AdvisorScreen() {
       pulseAnim.setValue(1);
     }
   }, [recState]);
+
+  // Cancel any in-flight stream and release recording on unmount
+  useEffect(() => {
+    return () => {
+      streamAbortRef.current?.abort();
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        recordingRef.current = null;
+      }
+    };
+  }, []);
 
   // Load greeting on mount
   useEffect(() => {
@@ -128,11 +147,21 @@ export default function AdvisorScreen() {
 
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || isSendingRef.current) return;
+    if (!hasAIAccess) { setUpgradeVisible(true); return; }
+    isSendingRef.current = true;
+
+    // Cancel any previous stream before starting a new one
+    streamAbortRef.current?.abort();
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+
+    // Timeout: abort the stream after 45s if no response
+    const timeoutId = setTimeout(() => controller.abort(), 45_000);
+
     setInput("");
     addUserMessage(trimmed);
 
-    // Insert a placeholder AI message and stream tokens into it
     const msgId = Date.now().toString();
     setIsTyping(true);
     try {
@@ -152,33 +181,49 @@ export default function AdvisorScreen() {
           );
         }
         scrollRef.current?.scrollToEnd({ animated: false });
-      });
-    } catch (err) {
+      }, controller.signal);
+    } catch (err: unknown) {
       setIsTyping(false);
+      // Ignore aborts from unmount/cancel — don't show an error to the user
+      if (err instanceof Error && err.name === "AbortError") return;
       addAiMessage(chatErrorMessage(err));
     } finally {
+      clearTimeout(timeoutId);
       setIsTyping(false);
       setStreamingId(null);
+      isSendingRef.current = false;
     }
   };
 
   const handleMic = async () => {
     if (recState === "idle") {
       try {
+        // Start recording first — only update state on success
+        const recording = await startRecording();
+        recordingRef.current = recording;
         setRecState("recording");
-        recordingRef.current = await startRecording();
-      } catch {
+      } catch (err) {
+        // Permission denied or hardware error — stay idle and show error in chat
+        addAiMessage(voiceErrorMessage(err) + " You can type your question instead.");
         setRecState("idle");
       }
     } else if (recState === "recording" && recordingRef.current) {
       setRecState("processing");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30_000);
       try {
-        const transcript = await stopAndTranscribe(recordingRef.current);
+        const transcript = await stopAndTranscribe(recordingRef.current, controller.signal);
         recordingRef.current = null;
         if (transcript) await sendMessage(transcript);
-      } catch (err) {
-        addAiMessage(voiceErrorMessage(err) + " You can type your question instead.");
+      } catch (err: unknown) {
+        recordingRef.current = null;
+        if (err instanceof Error && err.name === "AbortError") {
+          addAiMessage("Voice transcription timed out. Please check your connection and try again.");
+        } else {
+          addAiMessage(voiceErrorMessage(err) + " You can type your question instead.");
+        }
       } finally {
+        clearTimeout(timeoutId);
         setRecState("idle");
       }
     }
@@ -306,52 +351,72 @@ export default function AdvisorScreen() {
           )}
         </ScrollView>
 
-        {/* Input bar */}
-        <View style={[styles.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-          <TouchableOpacity style={styles.addBtn}>
-            <Ionicons name="add-circle-outline" size={26} color={colors.textMuted} />
-          </TouchableOpacity>
-
-          <TextInput
-            style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Ask your business coach..."
-            placeholderTextColor={colors.textMuted}
-            multiline
-            maxLength={500}
-            onSubmitEditing={() => sendMessage(input)}
-          />
-
-          {/* Mic button */}
+        {/* Input bar — locked for free plan */}
+        {!hasAIAccess ? (
           <TouchableOpacity
-            style={[styles.micBtn, recState === "recording" && styles.micBtnActive]}
-            onPress={handleMic}
-            disabled={recState === "processing" || isTyping}
+            style={[styles.lockedBar, { backgroundColor: "#7C3AED" + "18", borderTopColor: "#7C3AED" + "30" }]}
+            onPress={() => setUpgradeVisible(true)}
+            activeOpacity={0.8}
           >
-            {recState === "processing" ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Animated.View style={{ transform: [{ scale: recState === "recording" ? pulseAnim : 1 }] }}>
-                <Ionicons
-                  name={recState === "recording" ? "stop" : "mic"}
-                  size={20}
-                  color="#fff"
-                />
-              </Animated.View>
-            )}
+            <Ionicons name="lock-closed" size={16} color="#7C3AED" />
+            <Text style={[styles.lockedText, { color: "#7C3AED" }]}>
+              AI Advisor is a paid feature — Tap to unlock
+            </Text>
+            <Ionicons name="arrow-forward" size={14} color="#7C3AED" />
           </TouchableOpacity>
+        ) : (
+          <View style={[styles.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+            <TouchableOpacity style={styles.addBtn}>
+              <Ionicons name="add-circle-outline" size={26} color={colors.textMuted} />
+            </TouchableOpacity>
 
-          {/* Send button */}
-          <TouchableOpacity
-            style={[styles.sendBtn, { backgroundColor: input.trim() ? colors.primary : colors.border }]}
-            onPress={() => sendMessage(input)}
-            disabled={!input.trim() || isTyping}
-          >
-            <Ionicons name="arrow-forward" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
+            <TextInput
+              style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
+              value={input}
+              onChangeText={setInput}
+              placeholder="Ask your business coach..."
+              placeholderTextColor={colors.textMuted}
+              multiline
+              maxLength={500}
+              onSubmitEditing={() => sendMessage(input)}
+            />
+
+            {/* Mic button */}
+            <TouchableOpacity
+              style={[styles.micBtn, recState === "recording" && styles.micBtnActive]}
+              onPress={handleMic}
+              disabled={recState === "processing" || isTyping}
+            >
+              {recState === "processing" ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Animated.View style={{ transform: [{ scale: recState === "recording" ? pulseAnim : 1 }] }}>
+                  <Ionicons
+                    name={recState === "recording" ? "stop" : "mic"}
+                    size={20}
+                    color="#fff"
+                  />
+                </Animated.View>
+              )}
+            </TouchableOpacity>
+
+            {/* Send button */}
+            <TouchableOpacity
+              style={[styles.sendBtn, { backgroundColor: input.trim() ? colors.primary : colors.border }]}
+              onPress={() => sendMessage(input)}
+              disabled={!input.trim() || isTyping}
+            >
+              <Ionicons name="arrow-forward" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
       </KeyboardAvoidingView>
+
+      <UpgradePromptModal
+        visible={upgradeVisible}
+        onClose={() => setUpgradeVisible(false)}
+        feature="ai"
+      />
     </SafeAreaView>
   );
 }
@@ -421,6 +486,12 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
     tipsTitle: { fontSize: 12, fontWeight: "700", marginBottom: 4, letterSpacing: 0.3 },
     tipItem: { fontSize: 12, lineHeight: 18 },
 
+    lockedBar: {
+      flexDirection: "row", alignItems: "center", gap: 8,
+      paddingHorizontal: 20, paddingVertical: 16,
+      borderTopWidth: 1,
+    },
+    lockedText: { flex: 1, fontSize: 13, fontWeight: "600" },
     inputBar: {
       flexDirection: "row", alignItems: "flex-end", gap: 8,
       paddingHorizontal: 12, paddingVertical: 10,

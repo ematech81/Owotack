@@ -2,6 +2,7 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 
 import * as SecureStore from "expo-secure-store";
 import { ApiResponse } from "../types";
 import { ApiIPAddress } from "../utils/config";
+import { useUIStore } from "../store/uiStore";
 
 const API_URL = ApiIPAddress;
 const APP_KEY = process.env.EXPO_PUBLIC_APP_KEY ?? "";
@@ -36,8 +37,19 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 });
 
 api.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => {
+    // Successful response confirms we're online
+    useUIStore.getState().setOnline(true);
+    return response;
+  },
   async (error) => {
+    // No response object = network is unreachable (offline, DNS failure, timeout)
+    if (!error.response) {
+      useUIStore.getState().setOnline(false);
+    } else {
+      // Server responded — we are online even if it's an error status
+      useUIStore.getState().setOnline(true);
+    }
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {

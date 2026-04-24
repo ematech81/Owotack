@@ -10,6 +10,8 @@ import { ApiIPAddress } from "../../utils/config";
 import { useTheme } from "../../hooks/useTheme";
 import { voiceErrorMessage } from "../../utils/errorMessages";
 
+const TRANSCRIPTION_TIMEOUT_MS = 30_000;
+
 const RECORDING_TIPS = [
   "Speak clearly and at a steady pace.",
   "Be in a quiet environment for best results.",
@@ -33,6 +35,18 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
   const [showTips, setShowTips] = useState(true);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Stop and release recording if the component unmounts mid-session
+  useEffect(() => {
+    return () => {
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        recordingRef.current = null;
+      }
+      // Restore normal audio mode so other app audio isn't broken
+      Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
+    };
+  }, []);
 
   useEffect(() => {
     if (state === "recording") {
@@ -73,10 +87,17 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
   const stopAndTranscribe = async () => {
     if (!recordingRef.current) return;
     setState("processing");
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TRANSCRIPTION_TIMEOUT_MS);
+
     try {
       await recordingRef.current.stopAndUnloadAsync();
       const uri = recordingRef.current.getURI();
       recordingRef.current = null;
+
+      // Restore audio mode now that recording is done
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
 
       if (!uri) throw new Error("No audio recorded");
 
@@ -93,14 +114,24 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
           "x-app-key": appKey,
         },
         body: formData,
+        signal: controller.signal,
       });
 
       const json = await response.json();
       if (!response.ok) throw new Error(json?.message || "Transcription failed");
-      onTranscript(json.data.transcript);
-    } catch (err) {
-      setError(voiceErrorMessage(err));
+
+      const transcript: string = json?.data?.transcript ?? "";
+      if (!transcript.trim()) throw new Error("No audio recorded");
+
+      onTranscript(transcript);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setError("Transcription timed out. Please check your connection and try again.");
+      } else {
+        setError(voiceErrorMessage(err));
+      }
     } finally {
+      clearTimeout(timeoutId);
       setState("idle");
     }
   };
@@ -116,7 +147,6 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
     <View style={styles.container}>
       <Text style={styles.hint}>{hint}</Text>
 
-      {/* Recording tips — shown when idle, hidden once recording starts */}
       {showTips && state === "idle" && (
         <View style={[styles.tipsBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <TouchableOpacity

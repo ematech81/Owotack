@@ -30,10 +30,10 @@ export const PLANS: PlanConfig[] = [
     color: "#64748B",
     highlight: false,
     limits: {
-      salesPerMonth: 50,
-      expensesPerMonth: 30,
+      salesPerMonth: 10,
+      expensesPerMonth: 10,
       activeCredits: 5,
-      stockItems: 20,
+      stockItems: 15,
       aiChatsPerDay: 0,
       voicePerMonth: 0,
       whatsappReminders: 0,
@@ -44,7 +44,7 @@ export const PLANS: PlanConfig[] = [
   {
     id: "growth",
     name: "Growth",
-    priceNaira: 2500,
+    priceNaira: 3000,
     color: "#16A34A",
     highlight: true,
     badge: "Popular",

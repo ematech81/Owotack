@@ -17,6 +17,8 @@ import { formatNaira } from "../../src/utils/formatters";
 import { EXPENSE_CATEGORIES } from "../../src/constants/categories";
 import { DraftBanner } from "../../src/components/common/DraftBanner";
 import { draftStorage } from "../../src/utils/draft";
+import { checkExpensesLimit, recordExpenseUsage } from "../../src/utils/usageLimits";
+import { UpgradePromptModal, UpgradeFeature } from "../../src/components/common/UpgradePromptModal";
 
 interface ParsedExpense {
   description: string;
@@ -48,7 +50,11 @@ export default function AddExpenseScreen() {
   const [mode, setMode] = useState<"voice" | "manual">("voice");
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([emptyItem()]);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  const [upgradeVisible, setUpgradeVisible] = useState(false);
+  const [upgradeUsed, setUpgradeUsed] = useState(0);
+  const [upgradeLimit, setUpgradeLimit] = useState(0);
 
+  const planId = user?.subscription?.plan ?? "free";
   const draftKey = user ? `draft:expenses:${user._id}` : null;
 
   useEffect(() => {
@@ -114,6 +120,11 @@ export default function AddExpenseScreen() {
       Alert.alert("", "Add at least one expense with description and amount.");
       return;
     }
+    const limitCheck = await checkExpensesLimit(user._id, planId);
+    if (!limitCheck.allowed) {
+      setUpgradeUsed(limitCheck.used); setUpgradeLimit(limitCheck.limit);
+      setUpgradeVisible(true); return;
+    }
     setIsSaving(true);
     try {
       for (const item of valid) {
@@ -125,6 +136,7 @@ export default function AddExpenseScreen() {
           rawInput: transcript || undefined,
           userId: user._id,
         });
+        await recordExpenseUsage(user._id);
       }
       if (draftKey) await draftStorage.clear(draftKey);
       setDraftSavedAt(null);
@@ -280,6 +292,14 @@ export default function AddExpenseScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <UpgradePromptModal
+        visible={upgradeVisible}
+        onClose={() => setUpgradeVisible(false)}
+        feature="expenses"
+        used={upgradeUsed}
+        limit={upgradeLimit}
+      />
     </SafeAreaView>
   );
 }
