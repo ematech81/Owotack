@@ -11,7 +11,7 @@ export interface User {
     city?: string;
     market?: string;
   };
-  preferredLanguage: "pidgin" | "yoruba" | "igbo" | "hausa" | "english";
+  preferredLanguage: "pidgin" | "english";
   currency: string;
   subscription: {
     plan: "free" | "growth" | "pro" | "business";

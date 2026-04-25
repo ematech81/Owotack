@@ -13,9 +13,6 @@ export const BUSINESS_TYPES = [
 
 export const LANGUAGES = [
   { value: "pidgin", label: "Nigerian Pidgin" },
-  { value: "yoruba", label: "Yoruba" },
-  { value: "igbo", label: "Igbo" },
-  { value: "hausa", label: "Hausa" },
   { value: "english", label: "English" },
 ] as const;
 

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import * as SecureStore from "expo-secure-store";
 import { User } from "../types";
 import { authService, clearTokens, getStoredToken } from "../services/authService";
+import { clearTipCache } from "../services/aiService";
 import api from "../services/api";
 import { ApiResponse } from "../types";
 
@@ -39,6 +40,7 @@ interface AuthState {
   login: (phone: string, pin: string) => Promise<void>;
   register: (data: Parameters<typeof authService.register>[0]) => Promise<void>;
   logout: () => Promise<void>;
+  resetApp: () => Promise<void>;
   setUser: (user: User) => void;
 }
 
@@ -184,10 +186,39 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    const userId = useAuthStore.getState().user?._id?.toString();
     await authService.logout();
     await clearUserCache();
+    if (userId) clearTipCache(userId); // prevent this user's tip showing on next login
     // NEVER clear EVER_LOGGED_IN or ONBOARDED — returning user goes to login, not onboarding
     set({ user: null, isAuthenticated: false, pinLocked: false });
+  },
+
+  // Full factory reset — clears everything, app restarts from onboarding
+  resetApp: async () => {
+    clearTipCache(); // wipe entire cache since we're resetting everything
+    await authService.logout().catch(() => {});
+    await Promise.all([
+      SecureStore.deleteItemAsync(USER_CACHE_KEY),
+      SecureStore.deleteItemAsync(ONBOARDED_KEY),
+      SecureStore.deleteItemAsync(EVER_LOGGED_IN_KEY),
+      SecureStore.deleteItemAsync(STORED_PIN_KEY),
+      SecureStore.deleteItemAsync(AUTO_LOGIN_KEY),
+      SecureStore.deleteItemAsync("accessToken"),
+      SecureStore.deleteItemAsync("refreshToken"),
+      SecureStore.deleteItemAsync("last_phone"),
+    ]);
+    set({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      hasOnboarded: false,
+      hasEverLoggedIn: false,
+      pinLocked: false,
+      autoLoginEnabled: false,
+      lastPhone: null,
+    });
+    // _layout.tsx guard sees hasEverLoggedIn=false + hasOnboarded=false → routes to onboarding
   },
 
   setUser: (user) => set({ user }),

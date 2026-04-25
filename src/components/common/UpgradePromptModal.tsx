@@ -15,7 +15,7 @@ import { PLANS } from "../../config/plans";
 
 // ─── Feature config ───────────────────────────────────────────────────────────
 
-export type UpgradeFeature = "sales" | "expenses" | "stock" | "ai" | "voice";
+export type UpgradeFeature = "sales" | "expenses" | "stock" | "ai" | "voice" | "whatsapp" | "reports";
 
 interface FeatureConfig {
   icon: string;
@@ -65,6 +65,22 @@ const FEATURE_CONFIG: Record<UpgradeFeature, FeatureConfig> = {
     title: "Voice Input is a Paid Feature",
     description: () =>
       "Record sales by simply speaking. OwoTrack's AI will parse your voice and log the sale instantly. Available on Growth and above.",
+  },
+  whatsapp: {
+    icon: "logo-whatsapp",
+    iconColor: "#16A34A",
+    iconBg: "#DCFCE7",
+    title: "WhatsApp Reminders Limit Reached",
+    description: (used, limit) =>
+      `You've sent ${used} of ${limit} WhatsApp reminders this month. Upgrade to send more and keep your customers paying on time.`,
+  },
+  reports: {
+    icon: "bar-chart-outline",
+    iconColor: "#7C3AED",
+    iconBg: "#EDE9FE",
+    title: "Unlock Full Reports",
+    description: () =>
+      "Get 7-day trends, monthly breakdowns, top product rankings, and payment method analysis. Available on Growth and above.",
   },
 };
 
@@ -126,7 +142,7 @@ export function UpgradePromptModal({ visible, onClose, feature, used = 0, limit 
           </Text>
 
           {/* Usage bar (only for countable limits) */}
-          {limit > 0 && (feature === "sales" || feature === "expenses" || feature === "stock") && (
+          {limit > 0 && (feature === "sales" || feature === "expenses" || feature === "stock" || feature === "whatsapp") && (
             <View style={s.usageWrap}>
               <View style={s.usageBar}>
                 <View style={[s.usageFill, { backgroundColor: config.iconColor, width: "100%" }]} />

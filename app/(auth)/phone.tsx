@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,6 +21,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function PhoneScreen() {
+  const { ref } = useLocalSearchParams<{ ref?: string }>();
   const [loading, setLoading] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
@@ -35,7 +36,8 @@ export default function PhoneScreen() {
       if (result.devOtp) console.log(`[DEV OTP for ${normalized}]: ${result.devOtp}`);
       router.push({
         pathname: "/(auth)/otp",
-        params: { phone: normalized, isNewUser: result.isNewUser ? "1" : "0", devOtp: result.devOtp ?? "" },
+        // carry ref forward so it reaches profile-setup
+        params: { phone: normalized, isNewUser: result.isNewUser ? "1" : "0", devOtp: result.devOtp ?? "", ref: ref ?? "" },
       });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Failed to send OTP";

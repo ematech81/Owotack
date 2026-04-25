@@ -10,9 +10,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "expo-router";
 import { useReportStore } from "../../src/store/reportStore";
+import { useAuthStore } from "../../src/store/authStore";
 import { useTheme } from "../../src/hooks/useTheme";
 import { formatNaira } from "../../src/utils/formatters";
 import { ExpenseBreakdown, DayPoint, WeekPoint, PaymentBreakdown } from "../../src/services/reportService";
+import { getPlanById } from "../../src/config/plans";
+import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";
 
 type Period = "today" | "week" | "month";
 
@@ -362,8 +365,17 @@ function ExpenseBreakdownSection({ breakdown, colors }: {
 }
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
+// Maps reportsAccess tier to which periods are unlocked
+function canAccess(period: Period, reportsAccess: "today" | "weekly" | "full"): boolean {
+  if (period === "today") return true;
+  if (period === "week") return reportsAccess === "weekly" || reportsAccess === "full";
+  if (period === "month") return reportsAccess === "full";
+  return false;
+}
+
 export default function ReportsScreen() {
   const colors = useTheme();
+  const { user } = useAuthStore();
   const {
     period, setPeriod,
     daily, weekly, monthly,
@@ -373,6 +385,10 @@ export default function ReportsScreen() {
 
   const [reportYear, setReportYear] = useState(nowYear);
   const [reportMonth, setReportMonth] = useState(nowMonth);
+  const [upgradeVisible, setUpgradeVisible] = useState(false);
+
+  const planId = user?.subscription?.plan ?? "free";
+  const reportsAccess = getPlanById(planId).limits.reportsAccess;
 
   const load = useCallback((p: Period = period, year = reportYear, month = reportMonth) => {
     if (p === "today") loadDaily(todayStr());
@@ -398,6 +414,10 @@ export default function ReportsScreen() {
   useFocusEffect(useCallback(() => { loadRef.current(); }, []));
 
   const handlePeriod = (p: Period) => {
+    if (!canAccess(p, reportsAccess)) {
+      setUpgradeVisible(true);
+      return;
+    }
     setPeriod(p);
     load(p);
   };
@@ -442,18 +462,23 @@ export default function ReportsScreen() {
 
       {/* Period tabs */}
       <View style={styles.tabs}>
-        {(["today", "week", "month"] as Period[]).map((p) => (
-          <TouchableOpacity
-            key={p}
-            style={[styles.tab, period === p && styles.tabActive]}
-            onPress={() => handlePeriod(p)}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.tabText, period === p && styles.tabTextActive]}>
-              {p === "today" ? "Today" : p === "week" ? "7 Days" : "Monthly"}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {(["today", "week", "month"] as Period[]).map((p) => {
+          const locked = !canAccess(p, reportsAccess);
+          const active = period === p;
+          return (
+            <TouchableOpacity
+              key={p}
+              style={[styles.tab, active && styles.tabActive, locked && styles.tabLocked]}
+              onPress={() => handlePeriod(p)}
+              activeOpacity={0.85}
+            >
+              {locked && <Ionicons name="lock-closed" size={10} color={colors.textMuted} style={{ marginRight: 4 }} />}
+              <Text style={[styles.tabText, active && styles.tabTextActive, locked && styles.tabTextLocked]}>
+                {p === "today" ? "Today" : p === "week" ? "7 Days" : "Monthly"}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Month navigation */}
@@ -786,6 +811,12 @@ export default function ReportsScreen() {
           </View>
         </ScrollView>
       )}
+
+      <UpgradePromptModal
+        visible={upgradeVisible}
+        onClose={() => setUpgradeVisible(false)}
+        feature="reports"
+      />
     </SafeAreaView>
   );
 }
@@ -843,7 +874,7 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
       backgroundColor: colors.surface, borderRadius: 14,
       padding: 4, borderWidth: 1, borderColor: colors.border,
     },
-    tab: { flex: 1, paddingVertical: 9, alignItems: "center", borderRadius: 11 },
+    tab: { flex: 1, paddingVertical: 9, alignItems: "center", borderRadius: 11, flexDirection: "row", justifyContent: "center" },
     tabActive: {
       backgroundColor: colors.primary,
       ...Platform.select({
@@ -853,6 +884,8 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
     },
     tabText: { fontSize: 12, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.2 },
     tabTextActive: { color: "#fff" },
+    tabLocked: { opacity: 0.55 },
+    tabTextLocked: { color: colors.textMuted },
 
     // ── Month Nav ──
     monthNav: {

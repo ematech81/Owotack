@@ -19,6 +19,9 @@ function salesKey(userId: string) {
 function expensesKey(userId: string) {
   return `usage:expenses:${userId}:${monthSuffix()}`;
 }
+function whatsappKey(userId: string) {
+  return `usage:whatsapp:${userId}:${monthSuffix()}`;
+}
 
 async function getCount(key: string): Promise<number> {
   try {
@@ -73,6 +76,16 @@ export function checkVoiceAccess(planId: string): boolean {
   return plan.limits.voicePerMonth !== 0;
 }
 
+export async function checkWhatsAppLimit(userId: string, planId: string): Promise<LimitResult> {
+  const plan = getPlanById(planId as any);
+  const limit = plan.limits.whatsappReminders;
+  // 0 = no access (free plan), -1 = unlimited
+  if (limit === 0) return { allowed: false, used: 0, limit: 0 };
+  if (isUnlimited(limit)) return { allowed: true, used: 0, limit };
+  const used = await getCount(whatsappKey(userId));
+  return { allowed: used < limit, used, limit };
+}
+
 // ─── Record usage after successful action ────────────────────────────────────
 
 export async function recordSaleUsage(userId: string): Promise<void> {
@@ -81,6 +94,10 @@ export async function recordSaleUsage(userId: string): Promise<void> {
 
 export async function recordExpenseUsage(userId: string): Promise<void> {
   await increment(expensesKey(userId));
+}
+
+export async function recordWhatsAppUsage(userId: string): Promise<void> {
+  await increment(whatsappKey(userId));
 }
 
 // ─── Get current usage for display ───────────────────────────────────────────

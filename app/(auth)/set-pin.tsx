@@ -52,7 +52,7 @@ export default function SetPinScreen() {
         businessName: params.businessName || undefined,
         businessType: params.businessType || undefined,
         location: params.state ? { state: params.state } : undefined,
-        preferredLanguage: params.preferredLanguage as "pidgin" | "yoruba" | "igbo" | "hausa" | "english",
+        preferredLanguage: params.preferredLanguage as "pidgin" | "english",
         pin,
         referralCode: params.referralCode || undefined,
       });
@@ -101,7 +101,7 @@ export default function SetPinScreen() {
               By creating an account, you agree to our{" "}
               <Text
                 style={styles.termsLink}
-                onPress={() => Linking.openURL("https://github.com/YOUR_USERNAME/YOUR_REPO/blob/main/TERMS.md")}
+                onPress={() => Linking.openURL("https://ematech81.github.io/owoTrackTerms/")}
               >
                 Terms of Service
               </Text>

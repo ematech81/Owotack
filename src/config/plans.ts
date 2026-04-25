@@ -16,6 +16,7 @@ export interface PlanConfig {
   id: PlanId;
   name: string;
   priceNaira: number;
+  tagline: string;
   limits: PlanLimits;
   badge?: string;
   color: string;
@@ -27,6 +28,7 @@ export const PLANS: PlanConfig[] = [
     id: "free",
     name: "Starter",
     priceNaira: 0,
+    tagline: "Try OwoTrack free — no card needed.",
     color: "#64748B",
     highlight: false,
     limits: {
@@ -45,6 +47,7 @@ export const PLANS: PlanConfig[] = [
     id: "growth",
     name: "Growth",
     priceNaira: 3000,
+    tagline: "AI chat, voice entry, and room to grow — perfect for active traders.",
     color: "#16A34A",
     highlight: true,
     badge: "Popular",
@@ -64,6 +67,7 @@ export const PLANS: PlanConfig[] = [
     id: "pro",
     name: "Pro",
     priceNaira: 5000,
+    tagline: "Unlimited sales, expenses, and credits for serious business owners.",
     color: "#7C3AED",
     highlight: false,
     limits: {
@@ -82,6 +86,7 @@ export const PLANS: PlanConfig[] = [
     id: "business",
     name: "Business",
     priceNaira: 10000,
+    tagline: "Full power — unlimited everything, data export, and priority support.",
     color: "#B45309",
     highlight: false,
     limits: {

@@ -20,11 +20,12 @@ import { colors } from "../../src/constants/colors";
 const OTP_LENGTH = 6;
 
 export default function OTPScreen() {
-  const { phone, isNewUser, devOtp, mode } = useLocalSearchParams<{
+  const { phone, isNewUser, devOtp, mode, ref } = useLocalSearchParams<{
     phone: string;
     isNewUser: string;
     devOtp?: string;
     mode?: string;
+    ref?: string;
   }>();
   const [otp, setOtp] = useState(() =>
     devOtp ? devOtp.split("").slice(0, OTP_LENGTH) : Array(OTP_LENGTH).fill("")
@@ -70,7 +71,7 @@ export default function OTPScreen() {
     try {
       const result = await authService.verifyOtp(phone, code);
       if (isNewUser === "1" || result.isNewUser) {
-        router.push({ pathname: "/(auth)/profile-setup", params: { phone, tempToken: result.tempToken } });
+        router.push({ pathname: "/(auth)/profile-setup", params: { phone, tempToken: result.tempToken, ref: ref ?? "" } });
       } else {
         router.push({ pathname: "/(auth)/login", params: { phone } });
       }

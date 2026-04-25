@@ -15,6 +15,8 @@ import { useTheme } from "../../src/hooks/useTheme";
 import { formatNaira, formatDate } from "../../src/utils/formatters";
 import { ProductPickerInput } from "../../src/components/common/ProductPickerInput";
 import { CustomerPickerInput } from "../../src/components/common/CustomerPickerInput";
+import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";
+import { checkWhatsAppLimit, recordWhatsAppUsage } from "../../src/utils/usageLimits";
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -53,6 +55,11 @@ export default function CreditsScreen() {
   const { credits, stats, isLoading, activeFilter, loadCredits, loadStats, setFilter } = useCreditStore();
   const [showAdd, setShowAdd] = useState(false);
   const [selectedCredit, setSelectedCredit] = useState<ICredit | null>(null);
+  const [upgradeVisible, setUpgradeVisible] = useState(false);
+  const [upgradeUsed, setUpgradeUsed] = useState(0);
+  const [upgradeLimit, setUpgradeLimit] = useState(0);
+
+  const planId = user?.subscription?.plan ?? "free";
 
   const initials2 = (user?.name ?? "U").split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 
@@ -60,6 +67,42 @@ export default function CreditsScreen() {
     loadCredits();
     loadStats();
   }, []);
+
+  const handleWhatsAppReminder = async (credit: ICredit) => {
+    if (!user) return;
+    if (!credit.customerPhone) {
+      Alert.alert("No Phone Number", "This customer has no phone number saved. Edit the credit to add one.");
+      return;
+    }
+    const check = await checkWhatsAppLimit(user._id, planId);
+    if (!check.allowed) {
+      setUpgradeUsed(check.used);
+      setUpgradeLimit(check.limit);
+      setUpgradeVisible(true);
+      return;
+    }
+    // Convert Nigerian phone to WhatsApp international format
+    const digits = credit.customerPhone.replace(/\D/g, "");
+    const wa = digits.startsWith("234") ? digits : digits.startsWith("0") ? "234" + digits.slice(1) : "234" + digits;
+    const businessName = user.businessName || user.name;
+    const message =
+      `Hello ${credit.customerName}! 👋\n\n` +
+      `This is ${businessName}. You still owe ₦${credit.balance.toLocaleString()} for "${credit.description}".\n\n` +
+      `Please kindly make payment as soon as possible.\n\n` +
+      `Thank you! 🙏`;
+    const url = `https://wa.me/${wa}?text=${encodeURIComponent(message)}`;
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        Alert.alert("WhatsApp Not Found", "WhatsApp is not installed on this device.");
+        return;
+      }
+      await Linking.openURL(url);
+      await recordWhatsAppUsage(user._id);
+    } catch {
+      Alert.alert("Error", "Could not open WhatsApp. Please try again.");
+    }
+  };
 
   const styles = makeStyles(colors);
 
@@ -186,6 +229,15 @@ export default function CreditsScreen() {
                   </View>
                 </View>
                 <View style={styles.creditRight}>
+                  {(credit.status === "overdue" || credit.status === "due_soon") && credit.customerPhone && (
+                    <TouchableOpacity
+                      style={styles.waBtn}
+                      onPress={() => handleWhatsAppReminder(credit)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="logo-whatsapp" size={18} color="#16A34A" />
+                    </TouchableOpacity>
+                  )}
                   <Text style={[styles.creditAmount, credit.status === "paid" && styles.creditAmountPaid]}>
                     {formatNaira(credit.balance)}
                   </Text>
@@ -220,6 +272,14 @@ export default function CreditsScreen() {
           styles={styles}
         />
       )}
+
+      <UpgradePromptModal
+        visible={upgradeVisible}
+        onClose={() => setUpgradeVisible(false)}
+        feature="whatsapp"
+        used={upgradeUsed}
+        limit={upgradeLimit}
+      />
     </SafeAreaView>
   );
 }
@@ -841,6 +901,11 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
     creditStatusRow: { flexDirection: "row", alignItems: "center", gap: 4 },
     creditStatusText: { fontSize: 12, fontWeight: "600" },
     creditRight: { alignItems: "flex-end", gap: 6 },
+    waBtn: {
+      width: 30, height: 30, borderRadius: 8,
+      backgroundColor: "#DCFCE7",
+      alignItems: "center", justifyContent: "center",
+    },
     creditAmount: { fontSize: 16, fontWeight: "700", color: colors.textPrimary },
     creditAmountPaid: { color: colors.textMuted, textDecorationLine: "line-through" },
 

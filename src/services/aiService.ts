@@ -4,8 +4,17 @@ import * as SecureStore from "expo-secure-store";
 import { ApiIPAddress } from "../utils/config";
 import { Audio } from "expo-av";
 
-// Module-level tip cache — avoids calling OpenAI on every home screen focus
-let _tipCache: { message: string; expiresAt: number } | null = null;
+// Per-user tip cache keyed by userId — prevents one user's tip bleeding into another's session
+const _tipCache = new Map<string, { message: string; expiresAt: number }>();
+
+// Call this on logout and resetApp so the next user always gets a fresh tip
+export function clearTipCache(userId?: string) {
+  if (userId) {
+    _tipCache.delete(userId);
+  } else {
+    _tipCache.clear();
+  }
+}
 
 export interface AdvisorCard {
   type: "tracker" | "alert" | "tip";
@@ -26,14 +35,16 @@ export interface ChatMessage {
 }
 
 export const aiService = {
-  async getTip(forceRefresh = false): Promise<string> {
+  async getTip(userId: string, forceRefresh = false): Promise<string> {
     const now = Date.now();
-    if (!forceRefresh && _tipCache && _tipCache.expiresAt > now) {
-      return _tipCache.message;
+    const cached = _tipCache.get(userId);
+    if (!forceRefresh && cached && cached.expiresAt > now) {
+      return cached.message;
     }
     const res = await api.get<ApiResponse<AdvisorResponse>>("/advisor/tip");
     const message = res.data.data.message;
-    _tipCache = { message, expiresAt: now + 5 * 60 * 1000 };
+    // Cache for 4 hours — tips refresh naturally through the day without hammering OpenAI
+    _tipCache.set(userId, { message, expiresAt: now + 4 * 60 * 60 * 1000 });
     return message;
   },
 

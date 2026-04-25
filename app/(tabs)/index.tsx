@@ -171,9 +171,10 @@ export default function DashboardScreen() {
   );
 
   const loadTip = useCallback(async (forceRefresh = false) => {
+    if (!user?._id) return;
     setAiTipLoading(true);
     try {
-      const tip = await aiService.getTip(forceRefresh);
+      const tip = await aiService.getTip(user._id, forceRefresh);
       setAiTip(tip);
     } catch {
       setAiTip(
@@ -182,7 +183,7 @@ export default function DashboardScreen() {
     } finally {
       setAiTipLoading(false);
     }
-  }, []);
+  }, [user?._id]);
 
   const load = useCallback(() => {
     loadPeriod(period);
@@ -210,8 +211,7 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       loadRef.current();
-      // ── TO RE-ENABLE AI TIP: uncomment the line below ──
-      // loadTip();
+      loadTip();
     }, [loadTip])
   );
 
@@ -441,9 +441,7 @@ export default function DashboardScreen() {
         )}
 
         {/* ── AI Business Tip ── */}
-        {/* TO RE-ENABLE: remove the closing comment marker below and the opening one above,
-            then also uncomment `loadTip()` in useFocusEffect (~line 196) */}
-        {/* <TouchableOpacity
+        <TouchableOpacity
           style={styles.tipCard}
           activeOpacity={0.88}
           onPress={() => router.push("/(tabs)/advisor")}
@@ -468,14 +466,17 @@ export default function DashboardScreen() {
               <View style={[styles.shimmerLine, { width: "75%", marginTop: 6 }]} />
             </>
           ) : (
-            <Text style={styles.tipText}>{aiTip}</Text>
+            <View style={styles.tipTextWrap}>
+              <View style={styles.tipAccentBar} />
+              <Text style={styles.tipText}>{aiTip}</Text>
+            </View>
           )}
 
           <View style={styles.tipFooter}>
             <Text style={styles.tipCta}>Tap to chat with your AI coach</Text>
             <Ionicons name="arrow-forward" size={12} color={colors.primary} />
           </View>
-        </TouchableOpacity> */}
+        </TouchableOpacity>
 
         {/* ── Recent Ledger ── */}
         <View style={styles.ledgerHeader}>
@@ -799,20 +800,20 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
 
     // ── AI Tip ──
     tipCard: {
-      backgroundColor: colors.surface,
+      backgroundColor: "#F0FDF4",
       borderRadius: 20,
       padding: 18,
       marginBottom: 28,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderWidth: 1.5,
+      borderColor: colors.primary + "30",
       ...Platform.select({
         ios: {
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 3 },
-          shadowOpacity: 0.07,
-          shadowRadius: 10,
+          shadowColor: colors.primary,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.12,
+          shadowRadius: 12,
         },
-        android: { elevation: 3 },
+        android: { elevation: 4 },
       }),
     },
     tipHeaderRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
@@ -820,36 +821,51 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
       width: 36,
       height: 36,
       borderRadius: 10,
-      backgroundColor: "#F0FDF4",
+      backgroundColor: colors.primary + "18",
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
-      borderColor: "#BBF7D0",
+      borderColor: colors.primary + "30",
     },
-    tipTitle: { fontSize: 13, fontWeight: "800", color: colors.textPrimary },
-    tipSubtitle: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
+    tipTitle: { fontSize: 13, fontWeight: "800", color: colors.primary },
+    tipSubtitle: { fontSize: 11, color: colors.primary + "80", marginTop: 1 },
     tipBadge: {
       flexDirection: "row",
       alignItems: "center",
       gap: 3,
-      backgroundColor: "#F0FDF4",
+      backgroundColor: colors.primary + "18",
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderRadius: 8,
       borderWidth: 1,
-      borderColor: "#BBF7D0",
+      borderColor: colors.primary + "30",
     },
     tipBadgeText: { fontSize: 10, fontWeight: "800", color: colors.primary },
-    tipText: {
-      fontSize: 13,
-      color: colors.textSecondary,
-      lineHeight: 20,
+    tipTextWrap: {
+      flexDirection: "row",
+      gap: 10,
       marginBottom: 14,
+      alignItems: "stretch",
+    },
+    tipAccentBar: {
+      width: 3,
+      borderRadius: 2,
+      backgroundColor: colors.primary,
+      flexShrink: 0,
+    },
+    tipText: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: "600",
+      fontStyle: "italic",
+      color: "#064E3B",
+      lineHeight: 22,
+      letterSpacing: 0.1,
     },
     shimmerLine: {
       height: 12,
       borderRadius: 6,
-      backgroundColor: colors.border,
+      backgroundColor: colors.primary + "20",
       marginBottom: 4,
     },
     tipFooter: {
@@ -858,7 +874,7 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
       gap: 4,
       paddingTop: 12,
       borderTopWidth: 1,
-      borderTopColor: colors.border,
+      borderTopColor: colors.primary + "20",
     },
     tipCta: { fontSize: 11, fontWeight: "700", color: colors.primary },
 

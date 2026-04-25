@@ -23,12 +23,17 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function ProfileSetupScreen() {
-  const { phone, tempToken } = useLocalSearchParams<{ phone: string; tempToken: string }>();
+  // `ref` arrives when the user tapped a share link: owotrack://join?ref=CODE
+  // or https://owotrack.com/join?ref=CODE (via universal link / Expo deep link)
+  const { phone, tempToken, ref } = useLocalSearchParams<{ phone: string; tempToken: string; ref?: string }>();
   const [loading] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { preferredLanguage: "pidgin" },
+    defaultValues: {
+      preferredLanguage: "pidgin",
+      referralCode: ref ?? "",   // pre-fill from deep link
+    },
   });
 
   const onSubmit = (data: FormData) => {

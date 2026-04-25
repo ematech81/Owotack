@@ -35,6 +35,9 @@ const SUGGESTED = [
 const timeStr = (d: Date) =>
   d.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
 
+let _msgSeq = 0;
+const nextMsgId = () => `${Date.now()}-${++_msgSeq}`;
+
 // ── Tracker / Alert card embedded in chat ───────────────────────────────────
 function AdvisorCardView({ card, colors }: { card: AdvisorCard; colors: ReturnType<typeof useTheme> }) {
   const isPositive = card.positive !== false;
@@ -83,6 +86,7 @@ export default function AdvisorScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const streamAbortRef = useRef<AbortController | null>(null);
+  const streamTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSendingRef = useRef(false);
 
   // Pulse animation for recording
@@ -103,6 +107,7 @@ export default function AdvisorScreen() {
   // Cancel any in-flight stream and release recording on unmount
   useEffect(() => {
     return () => {
+      if (streamTimeoutRef.current) clearTimeout(streamTimeoutRef.current);
       streamAbortRef.current?.abort();
       if (recordingRef.current) {
         recordingRef.current.stopAndUnloadAsync().catch(() => {});
@@ -129,7 +134,7 @@ export default function AdvisorScreen() {
   const addAiMessage = useCallback((content: string, card?: AdvisorCard) => {
     setMessages((prev) => [
       ...prev,
-      { id: Date.now().toString(), role: "ai", content, card, timestamp: new Date() },
+      { id: nextMsgId(), role: "ai", content, card, timestamp: new Date() },
     ]);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, []);
@@ -137,7 +142,7 @@ export default function AdvisorScreen() {
   const addUserMessage = useCallback((content: string) => {
     setMessages((prev) => [
       ...prev,
-      { id: Date.now().toString(), role: "user", content, timestamp: new Date() },
+      { id: nextMsgId(), role: "user", content, timestamp: new Date() },
     ]);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, []);
@@ -158,11 +163,12 @@ export default function AdvisorScreen() {
 
     // Timeout: abort the stream after 45s if no response
     const timeoutId = setTimeout(() => controller.abort(), 45_000);
+    streamTimeoutRef.current = timeoutId;
 
     setInput("");
     addUserMessage(trimmed);
 
-    const msgId = Date.now().toString();
+    const msgId = nextMsgId();
     setIsTyping(true);
     try {
       let firstToken = true;
@@ -189,6 +195,7 @@ export default function AdvisorScreen() {
       addAiMessage(chatErrorMessage(err));
     } finally {
       clearTimeout(timeoutId);
+      streamTimeoutRef.current = null;
       setIsTyping(false);
       setStreamingId(null);
       isSendingRef.current = false;
@@ -358,11 +365,18 @@ export default function AdvisorScreen() {
             onPress={() => setUpgradeVisible(true)}
             activeOpacity={0.8}
           >
-            <Ionicons name="lock-closed" size={16} color="#7C3AED" />
-            <Text style={[styles.lockedText, { color: "#7C3AED" }]}>
-              AI Advisor is a paid feature — Tap to unlock
-            </Text>
-            <Ionicons name="arrow-forward" size={14} color="#7C3AED" />
+            <View style={[styles.lockedIconWrap, { backgroundColor: "#7C3AED" + "25" }]}>
+              <Ionicons name="sparkles" size={16} color="#7C3AED" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.lockedTitle, { color: "#7C3AED" }]}>
+                Unlock AI Business Chat
+              </Text>
+              <Text style={[styles.lockedSub, { color: "#7C3AED" + "AA" }]}>
+                Get smart insights, track performance &amp; receive personalized advice
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#7C3AED" />
           </TouchableOpacity>
         ) : (
           <View style={[styles.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
@@ -487,11 +501,17 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
     tipItem: { fontSize: 12, lineHeight: 18 },
 
     lockedBar: {
-      flexDirection: "row", alignItems: "center", gap: 8,
-      paddingHorizontal: 20, paddingVertical: 16,
+      flexDirection: "row", alignItems: "center", gap: 12,
+      paddingHorizontal: 16, paddingVertical: 14,
       borderTopWidth: 1,
     },
-    lockedText: { flex: 1, fontSize: 13, fontWeight: "600" },
+    lockedIconWrap: {
+      width: 36, height: 36, borderRadius: 10,
+      alignItems: "center", justifyContent: "center",
+      flexShrink: 0,
+    },
+    lockedTitle: { fontSize: 13, fontWeight: "800", marginBottom: 2 },
+    lockedSub: { fontSize: 11, fontWeight: "500", lineHeight: 15 },
     inputBar: {
       flexDirection: "row", alignItems: "flex-end", gap: 8,
       paddingHorizontal: 12, paddingVertical: 10,

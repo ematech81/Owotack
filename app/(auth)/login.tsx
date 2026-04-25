@@ -4,7 +4,6 @@ import {
   TouchableOpacity, Alert, KeyboardAvoidingView, Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as SecureStore from "expo-secure-store";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAuthStore } from "../../src/store/authStore";
 import { Button } from "../../src/components/common/Button";
@@ -19,13 +18,12 @@ export default function LoginScreen() {
   const [phone, setPhone] = useState(prefillPhone || "");
   const [pin, setPin] = useState("");
   const [step, setStep] = useState<"phone" | "pin">(prefillPhone ? "pin" : "phone");
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, resetApp, lastPhone } = useAuthStore();
 
+  // Pre-fill phone from the store (already read from SecureStore during initialize())
   useEffect(() => {
     if (prefillPhone) return;
-    SecureStore.getItemAsync("last_phone").then((saved) => {
-      if (saved) setPhone(saved);
-    });
+    if (lastPhone) setPhone(lastPhone);
   }, []);
 
   const handleDevReset = () => {
@@ -34,22 +32,9 @@ export default function LoginScreen() {
       {
         text: "Reset",
         style: "destructive",
-        onPress: async () => {
-          await Promise.all([
-            SecureStore.deleteItemAsync("has_onboarded"),
-            SecureStore.deleteItemAsync("has_ever_logged_in"),
-            SecureStore.deleteItemAsync("stored_pin"),
-            SecureStore.deleteItemAsync("cached_user"),
-            SecureStore.deleteItemAsync("accessToken"),
-            SecureStore.deleteItemAsync("refreshToken"),
-          ]);
-          useAuthStore.setState({
-            hasOnboarded: false,
-            isAuthenticated: false,
-            pinLocked: false,
-            user: null,
-          });
-        },
+        onPress: () => resetApp(),
+        // resetApp() clears all SecureStore keys + sets hasEverLoggedIn=false
+        // _layout.tsx guard then routes to onboarding automatically
       },
     ]);
   };

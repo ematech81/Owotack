@@ -1,6 +1,6 @@
 
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -47,11 +47,8 @@ const PLAN_GRADIENTS: Record<string, [string, string]> = {
 };
 
 const LANGUAGES: { key: User["preferredLanguage"]; label: string; flag: string }[] = [
+  { key: "pidgin", label: "Nigerian Pidgin", flag: "🇳🇬" },
   { key: "english", label: "English", flag: "🇬🇧" },
-  { key: "pidgin", label: "Pidgin", flag: "🇳🇬" },
-  { key: "yoruba", label: "Yoruba", flag: "🇳🇬" },
-  { key: "igbo", label: "Igbo", flag: "🇳🇬" },
-  { key: "hausa", label: "Hausa", flag: "🇳🇬" },
 ];
 
 // ─── Settings Row ─────────────────────────────────────────────────────────────
@@ -263,7 +260,7 @@ function ModalField({
 export default function ProfileScreen() {
   const router = useRouter();
   const colors = useTheme();
-  const { user, logout, setUser, autoLoginEnabled, setAutoLogin } = useAuthStore();
+  const { user, logout, resetApp, setUser, autoLoginEnabled, setAutoLogin } = useAuthStore();
 
   const planId = user?.subscription?.plan ?? "free";
   const plan = getPlanById(planId);
@@ -288,6 +285,23 @@ export default function ProfileScreen() {
   // ── Change PIN form
   const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
   const [pinSaving, setPinSaving] = useState(false);
+
+  // ── Referral data from API
+  const [referralData, setReferralData] = useState<{
+    totalReferrals: number;
+    referrals: { firstName: string; joinedAt: string; isActive: boolean; plan: string }[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    api.get<ApiResponse<{
+      referralCode: string;
+      totalReferrals: number;
+      referrals: { firstName: string; joinedAt: string; isActive: boolean; plan: string }[];
+    }>>("/users/me/referral")
+      .then((res) => setReferralData(res.data.data))
+      .catch(() => {});
+  }, [user?._id]);
 
   // ── Notification toggles (local state for optimistic UI)
   const [notifs, setNotifs] = useState({
@@ -411,9 +425,19 @@ export default function ProfileScreen() {
 
   const handleShareReferral = async () => {
     if (!user?.referralCode) return;
+    const code = user.referralCode;
+    const iosLink = "https://apps.apple.com/app/owotrack/id0000000000"; // replace with real App Store ID
+    const androidLink = "https://play.google.com/store/apps/details?id=com.owotrack.app";
     try {
       await Share.share({
-        message: `Join me on OwoTrack — the easiest way to track your business money! 🧾\nUse my referral code: ${user.referralCode}\nDownload the app now.`,
+        message:
+          `Hey! 👋 I use OwoTrack to track my business sales, expenses, and credits.\n\n` +
+          `Download the app 👇\n` +
+          `Android: ${androidLink}\n` +
+          `iPhone: ${iosLink}\n\n` +
+          `When you sign up, enter my referral code: *${code}*\n\n` +
+          `OwoTrack — Track your money the easy way! 🧾`,
+        url: androidLink, // iOS Share sheet uses this as the primary URL
       });
     } catch {
       /* ignore */
@@ -429,23 +453,7 @@ export default function ProfileScreen() {
         {
           text: "Reset",
           style: "destructive",
-          onPress: async () => {
-            await Promise.all([
-              SecureStore.deleteItemAsync("has_onboarded"),
-              SecureStore.deleteItemAsync("has_ever_logged_in"),
-              SecureStore.deleteItemAsync("stored_pin"),
-              SecureStore.deleteItemAsync("cached_user"),
-              SecureStore.deleteItemAsync("accessToken"),
-              SecureStore.deleteItemAsync("refreshToken"),
-            ]);
-            await logout();
-            useAuthStore.setState({
-              hasOnboarded: false,
-              isAuthenticated: false,
-              pinLocked: false,
-              user: null,
-            });
-          },
+          onPress: () => resetApp(),
         },
       ]
     );
@@ -737,6 +745,7 @@ export default function ProfileScreen() {
         {/* ── Referral ── */}
         {user?.referralCode ? (
           <SectionCard title="Refer a Friend" colors={colors}>
+            {/* Code + Share row */}
             <View style={s.referralInner}>
               <View style={s.referralLeft}>
                 <Text style={s.referralCodeLabel}>Your referral code</Text>
@@ -744,7 +753,7 @@ export default function ProfileScreen() {
                   {user.referralCode}
                 </Text>
                 <Text style={s.referralHint}>
-                  Share & earn rewards when friends join
+                  Friends enter this code when signing up
                 </Text>
               </View>
               <TouchableOpacity
@@ -756,8 +765,110 @@ export default function ProfileScreen() {
                 <Text style={s.shareBtnText}>Share</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Count + milestone progress */}
+            {(() => {
+              const count = referralData?.totalReferrals ?? 0;
+              const rewardUsed = (user as any)?.hasUsedReferralReward ?? false;
+              const rewardExpiry = (user as any)?.referralRewardExpiresAt;
+              const MILESTONE = 10;
+              const progress = Math.min(count / MILESTONE, 1);
+              const remaining = Math.max(MILESTONE - count, 0);
+
+              return (
+                <View style={s.referralCountRow}>
+                  {/* Current count */}
+                  <View style={[s.referralCountPill, { backgroundColor: planColor + "15" }]}>
+                    <Ionicons name="people-outline" size={14} color={planColor} />
+                    <Text style={[s.referralCountText, { color: planColor }]}>
+                      {count} friend{count !== 1 ? "s" : ""} joined using your code
+                    </Text>
+                  </View>
+
+                  {/* Reward milestone */}
+                  {!rewardUsed && (
+                    <View style={s.milestoneBox}>
+                      <View style={s.milestoneHeader}>
+                        <Ionicons name="trophy-outline" size={14} color="#D97706" />
+                        <Text style={s.milestoneTitle}>
+                          {remaining > 0
+                            ? `${remaining} more to unlock free Growth plan!`
+                            : "🎉 Growth plan reward unlocked!"}
+                        </Text>
+                      </View>
+                      <View style={s.milestoneBar}>
+                        <View style={[s.milestoneFill, { width: `${progress * 100}%` }]} />
+                      </View>
+                      <Text style={s.milestoneCount}>{count}/{MILESTONE} referrals</Text>
+                    </View>
+                  )}
+
+                  {/* Reward active banner */}
+                  {rewardUsed && rewardExpiry && new Date(rewardExpiry) > new Date() && (
+                    <View style={s.rewardActiveBanner}>
+                      <Ionicons name="star" size={14} color="#16A34A" />
+                      <Text style={s.rewardActiveText}>
+                        Free Growth reward active · expires{" "}
+                        {new Date(rewardExpiry).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
+
+            {/* Referral list */}
+            {referralData && referralData.referrals.length > 0 && (
+              <View style={s.referralList}>
+                {referralData.referrals.map((r, i) => (
+                  <View key={i} style={s.referralListRow}>
+                    <View style={[s.referralAvatar, { backgroundColor: planColor + "20" }]}>
+                      <Text style={[s.referralAvatarText, { color: planColor }]}>
+                        {r.firstName[0]?.toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.referralListName}>{r.firstName}</Text>
+                      <Text style={s.referralListDate}>
+                        Joined {new Date(r.joinedAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
+                      </Text>
+                    </View>
+                    {r.plan !== "free" && (
+                      <View style={[s.referralPaidBadge, { backgroundColor: "#DCFCE7" }]}>
+                        <Text style={s.referralPaidBadgeText}>Paid</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* How it works note */}
+            <View style={s.referralNote}>
+              <Ionicons name="information-circle-outline" size={14} color={colors.textMuted} />
+              <Text style={s.referralNoteText}>
+                A friend is only counted after they complete registration with your code.
+                Link clicks are never counted.
+              </Text>
+            </View>
           </SectionCard>
         ) : null}
+
+        {/* ── Export Data ── */}
+        <SectionCard title="Data" colors={colors}>
+          <SettingsRow
+            icon="download-outline"
+            label="Export Data"
+            subtitle={
+              getPlanById(planId).limits.canExport
+                ? "Download your business report as PDF"
+                : "Available on Business plan"
+            }
+            showArrow
+            onPress={() => router.push("/export" as any)}
+            colors={colors}
+          />
+        </SectionCard>
 
         {/* ── Legal ── */}
         <SectionCard title="Legal" colors={colors}>
@@ -766,7 +877,7 @@ export default function ProfileScreen() {
             label="Terms of Service"
             subtitle="Read our terms and conditions"
             showArrow
-            onPress={() => Linking.openURL("https://github.com/YOUR_USERNAME/YOUR_REPO/blob/main/TERMS.md")}
+            onPress={() => Linking.openURL("https://ematech81.github.io/owoTrackTerms/")}
             colors={colors}
           />
           <RowDivider colors={colors} />
@@ -1294,6 +1405,80 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
       marginBottom: 4,
     },
     referralHint: { fontSize: 11, color: colors.textMuted },
+    referralCountRow: {
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+      gap: 10,
+    },
+    referralCountPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      alignSelf: "flex-start",
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
+    referralCountText: { fontSize: 12, fontWeight: "700" },
+    referralList: {
+      paddingHorizontal: 16,
+      paddingBottom: 8,
+      gap: 10,
+    },
+    referralListRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    referralAvatar: {
+      width: 34, height: 34, borderRadius: 17,
+      alignItems: "center", justifyContent: "center",
+    },
+    referralAvatarText: { fontSize: 14, fontWeight: "800" },
+    referralListName: { fontSize: 13, fontWeight: "700", color: colors.textPrimary },
+    referralListDate: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
+    referralPaidBadge: {
+      paddingHorizontal: 8, paddingVertical: 3,
+      borderRadius: 10,
+    },
+    referralPaidBadgeText: { fontSize: 10, fontWeight: "700", color: "#16A34A" },
+    referralNote: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 6,
+      paddingHorizontal: 16,
+      paddingBottom: 14,
+      paddingTop: 4,
+    },
+    referralNoteText: {
+      flex: 1,
+      fontSize: 11,
+      color: colors.textMuted,
+      lineHeight: 16,
+    },
+    milestoneBox: {
+      backgroundColor: "#FFFBEB",
+      borderRadius: 12,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: "#FDE68A",
+      gap: 8,
+    },
+    milestoneHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
+    milestoneTitle: { fontSize: 12, fontWeight: "700", color: "#92400E", flex: 1 },
+    milestoneBar: {
+      height: 6, backgroundColor: "#FDE68A",
+      borderRadius: 3, overflow: "hidden",
+    },
+    milestoneFill: { height: 6, backgroundColor: "#D97706", borderRadius: 3 },
+    milestoneCount: { fontSize: 11, color: "#92400E", fontWeight: "600" },
+    rewardActiveBanner: {
+      flexDirection: "row", alignItems: "center", gap: 6,
+      backgroundColor: "#DCFCE7", borderRadius: 10,
+      paddingHorizontal: 12, paddingVertical: 8,
+      borderWidth: 1, borderColor: "#BBF7D0",
+    },
+    rewardActiveText: { fontSize: 12, fontWeight: "600", color: "#15803D", flex: 1 },
     shareBtn: {
       flexDirection: "row",
       alignItems: "center",
