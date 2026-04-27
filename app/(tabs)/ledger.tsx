@@ -5,7 +5,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  View, Text, StyleSheet,
+  View, Text, StyleSheet, TextInput,
   FlatList, TouchableOpacity, RefreshControl,
   Modal, Pressable, ScrollView, Platform,
   Animated, Dimensions,
@@ -469,7 +469,8 @@ function TransactionRow({ item, colors }: TransactionRowProps) {
       <TouchableOpacity
         onPressIn={onPressIn}
         onPressOut={onPressOut}
-        activeOpacity={1}
+        onPress={isSale ? () => router.push({ pathname: "/receipt", params: { saleId: sale!.localId } }) : undefined}
+        activeOpacity={isSale ? 0.85 : 1}
       >
         <View style={[rowStyles.card, { backgroundColor: colors.surface }, DESIGN.shadow.soft]}>
           <View style={[rowStyles.accentBar, { backgroundColor: accentColor }]} />
@@ -537,11 +538,18 @@ function TransactionRow({ item, colors }: TransactionRowProps) {
               </View>
             </View>
 
-            {/* Amount */}
+            {/* Amount + chevron hint for sales */}
             <View style={rowStyles.amountCol}>
               <Text style={[rowStyles.amount, { color: accentColor }]}>
                 {amountPrefix}{formatNaira(amount)}
               </Text>
+              {isSale && (
+                <View style={rowStyles.receiptBtn}>
+                  <Ionicons name="document-text-outline" size={12} color="#1A6B3C" />
+                  <Text style={rowStyles.receiptBtnText}>Receipt</Text>
+                  <Ionicons name="chevron-forward" size={11} color="#1A6B3C" />
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -609,6 +617,12 @@ const rowStyles = StyleSheet.create({
   syncBadgeText: { fontSize: 9, fontWeight: "700" },
   amountCol: { alignItems: "flex-end", gap: 4 },
   amount: { fontSize: 15, fontWeight: "800", letterSpacing: -0.3 },
+  receiptBtn: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    backgroundColor: "#ECFDF5", paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: 999,
+  },
+  receiptBtnText: { fontSize: 10, fontWeight: "700", color: "#1A6B3C" },
   tapHint: {
     marginLeft: "auto",
   },
@@ -838,48 +852,79 @@ const pillStyles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: "600", paddingBottom: 2 },
 });
 
-// ─── Date Selector Bar ────────────────────────────────────────────────────────
+// ─── Date Range Filter Bar ─────────────────────────────────────────────────────
 
-interface DateBarProps {
-  selected: string | null;
-  onOpen: () => void;
-  onClear: () => void;
+type DatePreset = "all" | "today" | "week" | "month" | "custom";
+
+const DATE_PRESETS: { key: DatePreset; label: string }[] = [
+  { key: "all",   label: "All" },
+  { key: "today", label: "Today" },
+  { key: "week",  label: "Week" },
+  { key: "month", label: "Month" },
+];
+
+interface FilterBarProps {
+  preset: DatePreset;
+  onPreset: (p: DatePreset) => void;
+  onOpenCalendar: () => void;
+  customerQuery: string;
+  onCustomerQuery: (q: string) => void;
   count: number;
   colors: ReturnType<typeof useTheme>;
 }
 
-function DateBar({ selected, onOpen, onClear, count, colors }: DateBarProps) {
-  const isFiltered = !!selected;
-
+function FilterBar({ preset, onPreset, onOpenCalendar, customerQuery, onCustomerQuery, count, colors }: FilterBarProps) {
   return (
-    <View style={dateBarStyles.row}>
-      <TouchableOpacity
-        style={[
-          dateBarStyles.chip,
-          { borderColor: isFiltered ? colors.primary : colors.border },
-          { backgroundColor: isFiltered ? colors.primary + "10" : colors.surface },
-          DESIGN.shadow.soft,
-        ]}
-        onPress={onOpen}
-        activeOpacity={0.75}
-      >
-        <Ionicons name="calendar" size={15} color={isFiltered ? colors.primary : colors.textMuted} />
-        <Text style={[dateBarStyles.chipText, { color: isFiltered ? colors.primary : colors.textSecondary }]}>
-          {labelForDate(selected)}
-        </Text>
-        <Ionicons name="chevron-down" size={13} color={isFiltered ? colors.primary : colors.textMuted} />
-      </TouchableOpacity>
-
-      <View style={dateBarStyles.right}>
-        <View style={[dateBarStyles.countBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[dateBarStyles.countText, { color: colors.textMuted }]}>
-            {count} record{count !== 1 ? "s" : ""}
-          </Text>
+    <View style={fbStyles.wrapper}>
+      {/* Date presets row */}
+      <View style={fbStyles.presetsRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={fbStyles.presetsScroll}>
+          {DATE_PRESETS.map((p) => {
+            const active = preset === p.key;
+            return (
+              <TouchableOpacity
+                key={p.key}
+                style={[fbStyles.presetBtn, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                onPress={() => onPreset(p.key)}
+                activeOpacity={0.75}
+              >
+                <Text style={[fbStyles.presetText, { color: active ? "#fff" : colors.textSecondary }]}>{p.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+          <TouchableOpacity
+            style={[
+              fbStyles.presetBtn,
+              preset === "custom" && { backgroundColor: colors.primary, borderColor: colors.primary },
+            ]}
+            onPress={onOpenCalendar}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="calendar-outline" size={13} color={preset === "custom" ? "#fff" : colors.textMuted} />
+            <Text style={[fbStyles.presetText, { color: preset === "custom" ? "#fff" : colors.textSecondary }]}>
+              Custom
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+        <View style={[fbStyles.countBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[fbStyles.countText, { color: colors.textMuted }]}>{count}</Text>
         </View>
+      </View>
 
-        {isFiltered && (
-          <TouchableOpacity onPress={onClear} style={[dateBarStyles.clearBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="close" size={15} color={colors.textMuted} />
+      {/* Customer search */}
+      <View style={[fbStyles.searchRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Ionicons name="person-outline" size={15} color={colors.textMuted} />
+        <TextInput
+          style={[fbStyles.searchInput, { color: colors.textPrimary }]}
+          placeholder="Filter by customer name..."
+          placeholderTextColor={colors.textMuted}
+          value={customerQuery}
+          onChangeText={onCustomerQuery}
+          returnKeyType="search"
+        />
+        {customerQuery.length > 0 && (
+          <TouchableOpacity onPress={() => onCustomerQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close-circle" size={16} color={colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -887,51 +932,59 @@ function DateBar({ selected, onOpen, onClear, count, colors }: DateBarProps) {
   );
 }
 
-const dateBarStyles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+const fbStyles = StyleSheet.create({
+  wrapper: { paddingHorizontal: 16, paddingBottom: 8, gap: 8 },
+  presetsRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  presetsScroll: { flexDirection: "row", gap: 6, paddingRight: 8 },
+  presetBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 12, paddingVertical: 7,
     borderRadius: DESIGN.radius.full,
     borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#fff",
   },
-  chipText: { fontSize: 13, fontWeight: "600" },
-  right: { flexDirection: "row", gap: 8, alignItems: "center" },
+  presetText: { fontSize: 12, fontWeight: "700" },
   countBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: DESIGN.radius.full,
-    borderWidth: 1,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: DESIGN.radius.full, borderWidth: 1, marginLeft: "auto" as any,
   },
-  countText: { fontSize: 12, fontWeight: "600" },
-  clearBtn: {
-    width: 32, height: 32,
-    borderRadius: DESIGN.radius.full,
-    alignItems: "center",
-    justifyContent: "center",
-    ...DESIGN.shadow.soft,
+  countText: { fontSize: 11, fontWeight: "700" },
+  searchRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    borderWidth: 1.5, borderRadius: DESIGN.radius.lg,
+    paddingHorizontal: 12, height: 42,
   },
+  searchInput: { flex: 1, fontSize: 13, fontWeight: "500" },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
+
+function getDateRange(preset: DatePreset): { start: string; end: string } | null {
+  const today = new Date();
+  const todayStr = toYMD(today);
+  if (preset === "today") return { start: todayStr, end: todayStr };
+  if (preset === "week") {
+    const mon = new Date(today);
+    mon.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    return { start: toYMD(mon), end: todayStr };
+  }
+  if (preset === "month") {
+    return { start: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`, end: todayStr };
+  }
+  return null;
+}
 
 export default function LedgerScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [customDate, setCustomDate] = useState<string | null>(null);
   const [calVisible, setCalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState<LedgerFilter>("all");
+  const [customerQuery, setCustomerQuery] = useState("");
 
   const load = useCallback(async () => {
     if (!user?._id) return;
@@ -940,20 +993,31 @@ export default function LedgerScreen() {
       let sales: Sale[];
       let expenses: Expense[];
 
-      if (selectedDate) {
+      if (datePreset === "custom" && customDate) {
         [sales, expenses] = await Promise.all([
-          salesDb.getByDate(user._id, selectedDate),
-          expenseDb.getByDate(user._id, selectedDate),
+          salesDb.getByDate(user._id, customDate),
+          expenseDb.getByDate(user._id, customDate),
         ]);
+      } else if (datePreset !== "all") {
+        const range = getDateRange(datePreset);
+        if (range) {
+          [sales, expenses] = await Promise.all([
+            salesDb.getByDateRange(user._id, range.start, range.end),
+            expenseDb.getByDateRange(user._id, range.start, range.end),
+          ]);
+        } else {
+          [sales, expenses] = await Promise.all([salesDb.getRecent(user._id, 100), expenseDb.getRecent(user._id, 100)]);
+        }
       } else {
         [sales, expenses] = await Promise.all([
-          salesDb.getRecent(user._id, 50),
-          expenseDb.getRecent(user._id, 50),
+          salesDb.getRecent(user._id, 100),
+          expenseDb.getRecent(user._id, 100),
         ]);
       }
 
-      const storedDraft = await draftStorage.load<SalesDraftData>(`draft:sales:${user._id}`);
-      const draftDateMatch = !selectedDate || (storedDraft && toYMD(new Date(storedDraft.savedAt)) === selectedDate);
+      const showDraft = datePreset === "all" || datePreset === "today";
+      const storedDraft = showDraft ? await draftStorage.load<SalesDraftData>(`draft:sales:${user._id}`) : null;
+      const draftDateMatch = datePreset !== "today" || (storedDraft && toYMD(new Date(storedDraft.savedAt)) === todayYMD);
       const draftEntries: LedgerEntry[] = storedDraft && draftDateMatch
         ? [{ kind: "sales_draft" as const, data: storedDraft.data, savedAt: storedDraft.savedAt, key: "sales_draft" }]
         : [];
@@ -973,7 +1037,7 @@ export default function LedgerScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user?._id, selectedDate]);
+  }, [user?._id, datePreset, customDate]);
 
   const loadRef = useRef(load);
   useEffect(() => { loadRef.current = load; }, [load]);
@@ -981,12 +1045,23 @@ export default function LedgerScreen() {
   useEffect(() => { load(); }, [load]);
 
   const filteredEntries = useMemo(() => {
-    if (activeFilter === "all") return entries;
-    if (activeFilter === "draft") return entries.filter((e) => e.kind === "sales_draft");
-    return entries.filter(
+    let result = entries;
+    // Payment type filter
+    if (activeFilter === "draft") result = result.filter((e) => e.kind === "sales_draft");
+    else if (activeFilter !== "all") result = result.filter(
       (e) => e.kind === "sale" && (e.data as Sale).paymentType === activeFilter
     );
-  }, [entries, activeFilter]);
+    // Customer name filter
+    if (customerQuery.trim()) {
+      const q = customerQuery.toLowerCase();
+      result = result.filter((e) => {
+        if (e.kind !== "sale") return true;
+        const name = (e.data as Sale).customerName ?? "";
+        return name.toLowerCase().includes(q);
+      });
+    }
+    return result;
+  }, [entries, activeFilter, customerQuery]);
 
   const totals = useMemo(() => {
     let sales = 0, expenses = 0;
@@ -1020,7 +1095,8 @@ export default function LedgerScreen() {
               Transaction Ledger
             </Text>
             <Text style={[screenStyles.heroSub, { color: colors.textMuted }]}>
-              {labelForDate(selectedDate)} · {activeFilter !== "all" ? activeFilter : "all types"}
+              {datePreset === "custom" && customDate ? labelForDate(customDate) : datePreset === "all" ? "All dates" : datePreset}
+              {" · "}{activeFilter !== "all" ? activeFilter : "all types"}
             </Text>
           </View>
 
@@ -1044,16 +1120,18 @@ export default function LedgerScreen() {
         />
       )}
 
-      {/* ── Date Bar ─────────────────────────────────────────────────────────── */}
-      <DateBar
-        selected={selectedDate}
-        onOpen={() => setCalVisible(true)}
-        onClear={() => setSelectedDate(null)}
+      {/* ── Filter Bar ───────────────────────────────────────────────────────── */}
+      <FilterBar
+        preset={datePreset}
+        onPreset={(p) => { setDatePreset(p); if (p !== "custom") setCustomDate(null); }}
+        onOpenCalendar={() => setCalVisible(true)}
+        customerQuery={customerQuery}
+        onCustomerQuery={setCustomerQuery}
         count={filteredEntries.length}
         colors={colors}
       />
 
-      {/* ── Filter Pills ──────────────────────────────────────────────────────── */}
+      {/* ── Payment Filter Pills ──────────────────────────────────────────────── */}
       <FilterPills active={activeFilter} onChange={setActiveFilter} colors={colors} />
 
       {/* ── Transaction List ──────────────────────────────────────────────────── */}
@@ -1079,8 +1157,8 @@ export default function LedgerScreen() {
                 No Transactions
               </Text>
               <Text style={[screenStyles.emptySub, { color: colors.textMuted }]}>
-                {selectedDate
-                  ? `Nothing recorded on ${labelForDate(selectedDate)}`
+                {datePreset !== "all"
+                  ? `Nothing recorded for this period.`
                   : "Your ledger is empty. Transactions will appear here."}
               </Text>
             </View>
@@ -1090,8 +1168,8 @@ export default function LedgerScreen() {
 
       <CalendarModal
         visible={calVisible}
-        selected={selectedDate}
-        onSelect={setSelectedDate}
+        selected={customDate}
+        onSelect={(ymd) => { setCustomDate(ymd); setDatePreset(ymd ? "custom" : "all"); }}
         onClose={() => setCalVisible(false)}
         colors={colors}
       />

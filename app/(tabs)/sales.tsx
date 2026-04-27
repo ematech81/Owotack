@@ -88,6 +88,181 @@ const emptyItem = (): Partial<SaleItem> => ({
   productName: "", quantity: 1, unit: "piece", unitPrice: 0, costPrice: 0,
 });
 
+// ─── Discount & Tax Section ───────────────────────────────────────────────────
+
+function DiscountTaxSection({
+  subtotal,
+  discount, discountType, tax,
+  onDiscountChange, onDiscountTypeChange, onTaxChange,
+}: {
+  subtotal: number;
+  discount: number;
+  discountType: "fixed" | "percent";
+  tax: number;
+  onDiscountChange: (v: number) => void;
+  onDiscountTypeChange: (v: "fixed" | "percent") => void;
+  onTaxChange: (v: number) => void;
+}) {
+  const discountAmount = discountType === "percent"
+    ? subtotal * discount / 100
+    : Math.min(discount, subtotal);
+  const afterDiscount = Math.max(0, subtotal - discountAmount);
+  const taxAmount = afterDiscount * tax / 100;
+  const finalTotal = afterDiscount + taxAmount;
+  const hasAdjustment = discountAmount > 0 || taxAmount > 0;
+
+  return (
+    <View style={adjS.wrap}>
+      <View style={adjS.header}>
+        <View style={[adjS.headerIcon, { backgroundColor: "#F59E0B18" }]}>
+          <Ionicons name="pricetag-outline" size={14} color="#D97706" />
+        </View>
+        <Text style={adjS.headerTitle}>Discount & Tax</Text>
+        <Text style={adjS.headerHint}>Optional</Text>
+      </View>
+
+      {/* Discount row */}
+      <View style={adjS.row}>
+        <Text style={adjS.fieldLabel}>Discount</Text>
+        <View style={adjS.inputGroup}>
+          <View style={adjS.typeToggle}>
+            {(["fixed", "percent"] as const).map((t) => (
+              <TouchableOpacity
+                key={t}
+                style={[adjS.typeBtn, discountType === t && adjS.typeBtnActive]}
+                onPress={() => onDiscountTypeChange(t)}
+              >
+                <Text style={[adjS.typeBtnText, discountType === t && adjS.typeBtnTextActive]}>
+                  {t === "fixed" ? "₦" : "%"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={adjS.valueInput}>
+            <TextInput
+              style={adjS.input}
+              placeholder="0"
+              placeholderTextColor={colors.textMuted}
+              value={discount > 0 ? discount.toString() : ""}
+              onChangeText={(v) => onDiscountChange(parseFloat(v) || 0)}
+              keyboardType="numeric"
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Tax row */}
+      <View style={adjS.row}>
+        <Text style={adjS.fieldLabel}>Tax (VAT %)</Text>
+        <View style={adjS.inputGroup}>
+          <View style={[adjS.typeToggle, { opacity: 0.4 }]}>
+            <View style={adjS.typeBtnActive}><Text style={adjS.typeBtnTextActive}>%</Text></View>
+          </View>
+          <View style={adjS.valueInput}>
+            <TextInput
+              style={adjS.input}
+              placeholder="0"
+              placeholderTextColor={colors.textMuted}
+              value={tax > 0 ? tax.toString() : ""}
+              onChangeText={(v) => onTaxChange(parseFloat(v) || 0)}
+              keyboardType="numeric"
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Breakdown preview */}
+      {hasAdjustment && subtotal > 0 && (
+        <View style={adjS.breakdown}>
+          <View style={adjS.breakRow}>
+            <Text style={adjS.breakLabel}>Subtotal</Text>
+            <Text style={adjS.breakValue}>{formatNaira(subtotal)}</Text>
+          </View>
+          {discountAmount > 0 && (
+            <View style={adjS.breakRow}>
+              <Text style={[adjS.breakLabel, { color: "#D97706" }]}>
+                Discount {discountType === "percent" ? `(${discount}%)` : ""}
+              </Text>
+              <Text style={[adjS.breakValue, { color: "#D97706" }]}>-{formatNaira(discountAmount)}</Text>
+            </View>
+          )}
+          {taxAmount > 0 && (
+            <View style={adjS.breakRow}>
+              <Text style={[adjS.breakLabel, { color: "#2563EB" }]}>Tax ({tax}%)</Text>
+              <Text style={[adjS.breakValue, { color: "#2563EB" }]}>+{formatNaira(taxAmount)}</Text>
+            </View>
+          )}
+          <View style={[adjS.breakRow, adjS.totalRow]}>
+            <Text style={adjS.totalLabel}>Total</Text>
+            <Text style={adjS.totalValue}>{formatNaira(finalTotal)}</Text>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const adjS = StyleSheet.create({
+  wrap: {
+    backgroundColor: colors.surface,
+    borderRadius: D.radius.xl,
+    padding: 16,
+    marginBottom: 12,
+    gap: 12,
+    ...D.shadow.soft,
+  },
+  header: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerIcon: {
+    width: 26, height: 26, borderRadius: D.radius.sm,
+    alignItems: "center", justifyContent: "center",
+  },
+  headerTitle: { fontSize: 14, fontWeight: "800", color: colors.textPrimary, flex: 1 },
+  headerHint: { fontSize: 11, color: colors.textMuted, fontStyle: "italic" },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  fieldLabel: { fontSize: 13, fontWeight: "600", color: colors.textSecondary, flex: 1 },
+  inputGroup: { flexDirection: "row", alignItems: "center", gap: 8, flex: 2 },
+  typeToggle: {
+    flexDirection: "row",
+    backgroundColor: colors.background,
+    borderRadius: D.radius.md,
+    borderWidth: 1.5, borderColor: colors.border,
+    overflow: "hidden",
+  },
+  typeBtn: {
+    paddingHorizontal: 12, paddingVertical: 8,
+  },
+  typeBtnActive: {
+    paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: colors.primary,
+    borderRadius: D.radius.sm,
+  },
+  typeBtnText: { fontSize: 13, fontWeight: "700", color: colors.textMuted },
+  typeBtnTextActive: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  valueInput: {
+    flex: 1, height: 40,
+    backgroundColor: colors.background,
+    borderWidth: 1.5, borderColor: colors.border,
+    borderRadius: D.radius.md, paddingHorizontal: 12,
+    justifyContent: "center",
+  },
+  input: { fontSize: 14, fontWeight: "600", color: colors.textPrimary },
+  breakdown: {
+    backgroundColor: colors.background,
+    borderRadius: D.radius.md,
+    padding: 12, gap: 6,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  breakRow: { flexDirection: "row", justifyContent: "space-between" },
+  breakLabel: { fontSize: 12, color: colors.textMuted, fontWeight: "500" },
+  breakValue: { fontSize: 12, color: colors.textPrimary, fontWeight: "600" },
+  totalRow: {
+    borderTopWidth: 1, borderTopColor: colors.border,
+    paddingTop: 8, marginTop: 2,
+  },
+  totalLabel: { fontSize: 13, fontWeight: "800", color: colors.textPrimary },
+  totalValue: { fontSize: 15, fontWeight: "900", color: colors.primary },
+});
+
 // ─── Payment Config ───────────────────────────────────────────────────────────
 
 const PAYMENT_OPTIONS: Array<{
@@ -926,6 +1101,9 @@ export default function AddSaleScreen() {
   const [upgradeFeature, setUpgradeFeature] = useState<UpgradeFeature>("sales");
   const [upgradeUsed, setUpgradeUsed] = useState(0);
   const [upgradeLimit, setUpgradeLimit] = useState(0);
+  const [discount, setDiscount] = useState(0);
+  const [discountType, setDiscountType] = useState<"fixed" | "percent">("fixed");
+  const [tax, setTax] = useState(0);
 
   const planId = user?.subscription?.plan ?? "free";
   const draftKey = user ? `draft:sales:${user._id}` : null;
@@ -998,6 +1176,7 @@ export default function AddSaleScreen() {
           setTranscript("");
           setCustomerName("");
           setSaleDate(new Date());
+          setDiscount(0); setDiscountType("fixed"); setTax(0);
         },
       },
     ]);
@@ -1036,11 +1215,12 @@ export default function AddSaleScreen() {
         quantity: item.quantity, unit: item.unit, unitPrice: item.unitPrice,
         costPrice: 0, totalAmount: item.totalAmount, profit: item.totalAmount,
       }));
-      await addSale({
+      const sale = await addSale({
         date: saleDate.toISOString(), items,
         paymentType: parsedResult.paymentType || "cash",
         inputMethod: "voice", rawInput: transcript,
         customerName: customerName.trim() || undefined,
+        discount, discountType, tax,
         userId: user._id,
       });
       await recordSaleUsage(user._id);
@@ -1048,7 +1228,7 @@ export default function AddSaleScreen() {
       if (draftKey) await draftStorage.clear(draftKey);
       setDraftSavedAt(null); setTranscript(""); setParsedResult(null);
       setCustomerName(""); setSaleDate(new Date());
-      Alert.alert("✅ Recorded!", "Sale has been saved successfully.");
+      router.push({ pathname: "/receipt", params: { saleId: sale.localId } });
     } catch (err) {
       Alert.alert("Save Failed", saveErrorMessage(err));
     } finally {
@@ -1096,10 +1276,11 @@ export default function AddSaleScreen() {
         totalAmount: item.unitPrice! * (item.quantity || 1),
         profit: (item.unitPrice! - (item.costPrice || 0)) * (item.quantity || 1),
       }));
-      await addSale({
+      const sale = await addSale({
         date: saleDate.toISOString(), items, paymentType,
         inputMethod: "manual_form",
         customerName: customerName.trim() || undefined,
+        discount, discountType, tax,
         userId: user._id,
       });
       if (customerName.trim()) saveCustomerName(user._id, customerName.trim());
@@ -1107,7 +1288,8 @@ export default function AddSaleScreen() {
       if (draftKey) await draftStorage.clear(draftKey);
       setDraftSavedAt(null); setManualItems([emptyItem()]); setCollapsedItems([false]);
       setCustomerName(""); setSaleDate(new Date());
-      Alert.alert("✅ Recorded!", "Sale has been saved successfully.");
+      setDiscount(0); setDiscountType("fixed"); setTax(0);
+      router.push({ pathname: "/receipt", params: { saleId: sale.localId } });
     } catch (err) {
       Alert.alert("Save Failed", saveErrorMessage(err));
     } finally {
@@ -1269,6 +1451,18 @@ export default function AddSaleScreen() {
                 <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
                 <Text style={[screenS.addItemText, { color: colors.primary }]}>Add Another Item</Text>
               </TouchableOpacity>
+
+              {/* Discount & Tax */}
+              <DiscountTaxSection
+                subtotal={manualItems.filter(i => i.productName && (i.unitPrice || 0) > 0)
+                  .reduce((s, i) => s + (i.unitPrice || 0) * (i.quantity || 1), 0)}
+                discount={discount}
+                discountType={discountType}
+                tax={tax}
+                onDiscountChange={setDiscount}
+                onDiscountTypeChange={setDiscountType}
+                onTaxChange={setTax}
+              />
 
               {/* Payment method */}
               <PaymentSelector value={paymentType} onChange={setPaymentType} />

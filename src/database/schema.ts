@@ -106,4 +106,17 @@ export const initDatabase = async (): Promise<void> => {
   try {
     await database.execAsync("ALTER TABLE sales ADD COLUMN customer_name TEXT;");
   } catch {}
+
+  // Migration: add invoice_number to sales if not exists
+  try {
+    await database.execAsync("ALTER TABLE sales ADD COLUMN invoice_number TEXT;");
+  } catch {}
+
+  // Migrations: discount / tax fields
+  try { await database.execAsync("ALTER TABLE sales ADD COLUMN subtotal REAL DEFAULT 0;"); } catch {}
+  try { await database.execAsync("ALTER TABLE sales ADD COLUMN discount REAL DEFAULT 0;"); } catch {}
+  try { await database.execAsync("ALTER TABLE sales ADD COLUMN discount_type TEXT DEFAULT 'fixed';"); } catch {}
+  try { await database.execAsync("ALTER TABLE sales ADD COLUMN discount_amount REAL DEFAULT 0;"); } catch {}
+  try { await database.execAsync("ALTER TABLE sales ADD COLUMN tax REAL DEFAULT 0;"); } catch {}
+  try { await database.execAsync("ALTER TABLE sales ADD COLUMN tax_amount REAL DEFAULT 0;"); } catch {}
 };

@@ -3,8 +3,6 @@ import { v4 as uuid } from "uuid";
 import { getDb } from "./schema";
 import { Sale, SaleItem } from "../types";
 
-// Returns the next calendar day as YYYY-MM-DD. Used for exclusive upper-bound queries so that
-// both date-only ("2024-04-20") and full-timestamp ("2024-04-20T10:30:00.000Z") formats are matched.
 const nextYMD = (ymd: string): string => {
   const d = new Date(ymd.slice(0, 10) + "T12:00:00Z");
   d.setUTCDate(d.getUTCDate() + 1);
@@ -17,6 +15,12 @@ type LocalSaleRow = {
   user_id: string;
   date: string;
   items: string;
+  subtotal: number;
+  discount: number;
+  discount_type: string;
+  discount_amount: number;
+  tax: number;
+  tax_amount: number;
   total_amount: number;
   total_cost_of_goods: number;
   total_profit: number;
@@ -26,6 +30,7 @@ type LocalSaleRow = {
   raw_input: string | null;
   notes: string | null;
   customer_name: string | null;
+  invoice_number: string | null;
   sync_status: string;
   created_at: string;
   updated_at: string;
@@ -37,6 +42,12 @@ const rowToSale = (row: LocalSaleRow): Sale => ({
   userId: row.user_id,
   date: row.date,
   items: JSON.parse(row.items) as SaleItem[],
+  subtotal: row.subtotal ?? row.total_amount,
+  discount: row.discount ?? 0,
+  discountType: (row.discount_type as Sale["discountType"]) ?? "fixed",
+  discountAmount: row.discount_amount ?? 0,
+  tax: row.tax ?? 0,
+  taxAmount: row.tax_amount ?? 0,
   totalAmount: row.total_amount,
   totalCostOfGoods: row.total_cost_of_goods,
   totalProfit: row.total_profit,
@@ -46,6 +57,7 @@ const rowToSale = (row: LocalSaleRow): Sale => ({
   rawInput: row.raw_input ?? undefined,
   notes: row.notes ?? undefined,
   customerName: row.customer_name ?? undefined,
+  invoiceNumber: row.invoice_number ?? undefined,
   syncStatus: row.sync_status as Sale["syncStatus"],
   localId: row.id,
   isDeleted: row.is_deleted === 1,
@@ -56,6 +68,12 @@ export const salesDb = {
   async insert(userId: string, data: {
     date: string;
     items: SaleItem[];
+    subtotal?: number;
+    discount?: number;
+    discountType?: "fixed" | "percent";
+    discountAmount?: number;
+    tax?: number;
+    taxAmount?: number;
     totalAmount: number;
     totalCostOfGoods: number;
     totalProfit: number;
@@ -65,6 +83,7 @@ export const salesDb = {
     rawInput?: string;
     notes?: string;
     customerName?: string;
+    invoiceNumber?: string;
   }): Promise<Sale> {
     const db = await getDb();
     const id = uuid();
@@ -72,20 +91,37 @@ export const salesDb = {
 
     await db.runAsync(
       `INSERT INTO sales
-        (id, user_id, date, items, total_amount, total_cost_of_goods, total_profit,
+        (id, user_id, date, items, subtotal, discount, discount_type, discount_amount,
+         tax, tax_amount, total_amount, total_cost_of_goods, total_profit,
          profit_margin, payment_type, input_method, raw_input, notes, customer_name,
-         sync_status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+         invoice_number, sync_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
       [
         id, userId, data.date, JSON.stringify(data.items),
+        data.subtotal ?? data.totalAmount,
+        data.discount ?? 0,
+        data.discountType ?? "fixed",
+        data.discountAmount ?? 0,
+        data.tax ?? 0,
+        data.taxAmount ?? 0,
         data.totalAmount, data.totalCostOfGoods, data.totalProfit,
         data.profitMargin, data.paymentType, data.inputMethod,
-        data.rawInput ?? null, data.notes ?? null, data.customerName ?? null, now, now,
+        data.rawInput ?? null, data.notes ?? null, data.customerName ?? null,
+        data.invoiceNumber ?? null, now, now,
       ]
     );
 
     const row = await db.getFirstAsync<LocalSaleRow>("SELECT * FROM sales WHERE id = ?", [id]);
     return rowToSale(row!);
+  },
+
+  async getById(localId: string): Promise<Sale | null> {
+    const db = await getDb();
+    const row = await db.getFirstAsync<LocalSaleRow>(
+      "SELECT * FROM sales WHERE id = ? AND is_deleted = 0",
+      [localId]
+    );
+    return row ? rowToSale(row) : null;
   },
 
   async getByDate(userId: string, date: string): Promise<Sale[]> {
@@ -132,7 +168,7 @@ export const salesDb = {
     return rows.map(rowToSale);
   },
 
-  async getRecent(userId: string, limit = 50): Promise<Sale[]> {
+  async getRecent(userId: string, limit = 100): Promise<Sale[]> {
     const db = await getDb();
     const rows = await db.getAllAsync<LocalSaleRow>(
       "SELECT * FROM sales WHERE user_id = ? AND is_deleted = 0 ORDER BY created_at DESC LIMIT ?",
@@ -154,16 +190,24 @@ export const salesDb = {
         const now = new Date().toISOString();
         await db.runAsync(
           `INSERT OR IGNORE INTO sales
-            (id, server_id, user_id, date, items, total_amount, total_cost_of_goods, total_profit,
-             profit_margin, payment_type, input_method, raw_input, notes, sync_status,
-             created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?, ?)`,
+            (id, server_id, user_id, date, items, subtotal, discount, discount_type, discount_amount,
+             tax, tax_amount, total_amount, total_cost_of_goods, total_profit,
+             profit_margin, payment_type, input_method, raw_input, notes, customer_name,
+             invoice_number, sync_status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?, ?)`,
           [
             id, serverId, userId,
             typeof sale.date === "string" ? sale.date : new Date(sale.date).toISOString(),
             JSON.stringify(sale.items),
+            sale.subtotal ?? sale.totalAmount,
+            sale.discount ?? 0,
+            sale.discountType ?? "fixed",
+            sale.discountAmount ?? 0,
+            sale.tax ?? 0,
+            sale.taxAmount ?? 0,
             sale.totalAmount, sale.totalCostOfGoods, sale.totalProfit, sale.profitMargin,
             sale.paymentType, sale.inputMethod, sale.rawInput ?? null, sale.notes ?? null,
+            sale.customerName ?? null, sale.invoiceNumber ?? null,
             sale.createdAt || now, now,
           ]
         );

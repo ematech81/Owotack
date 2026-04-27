@@ -49,6 +49,12 @@ export interface Sale {
   userId: string;
   date: string;
   items: SaleItem[];
+  subtotal?: number;
+  discount?: number;
+  discountType?: "fixed" | "percent";
+  discountAmount?: number;
+  tax?: number;
+  taxAmount?: number;
   totalAmount: number;
   totalCostOfGoods: number;
   totalProfit: number;
@@ -58,6 +64,7 @@ export interface Sale {
   rawInput?: string;
   notes?: string;
   customerName?: string;
+  invoiceNumber?: string;
   syncStatus: "synced" | "pending" | "failed";
   localId: string;
   isDeleted: boolean;

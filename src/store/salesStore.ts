@@ -4,6 +4,7 @@ import { salesDb } from "../database/salesDb";
 import api from "../services/api";
 import { ApiResponse } from "../types";
 import { useUIStore } from "./uiStore";
+import { generateInvoiceNumber } from "../utils/invoiceNumber";
 
 interface SalesState {
   todaySales: Sale[];
@@ -16,19 +17,33 @@ interface SalesState {
     rawInput?: string;
     notes?: string;
     customerName?: string;
+    discount?: number;
+    discountType?: "fixed" | "percent";
+    tax?: number;
     userId: string;
   }) => Promise<Sale>;
   loadToday: (userId: string) => Promise<void>;
   parseText: (input: string) => Promise<unknown>;
 }
 
-const computeTotals = (items: SaleItem[]) => {
-  const totalAmount = items.reduce((s, i) => s + (i.unitPrice * i.quantity), 0);
+function computeTotals(
+  items: SaleItem[],
+  discount = 0,
+  discountType: "fixed" | "percent" = "fixed",
+  tax = 0
+) {
+  const subtotal = items.reduce((s, i) => s + (i.unitPrice * i.quantity), 0);
   const totalCostOfGoods = items.reduce((s, i) => s + ((i.costPrice ?? 0) * i.quantity), 0);
-  const totalProfit = totalAmount - totalCostOfGoods;
-  const profitMargin = totalAmount > 0 ? Math.round((totalProfit / totalAmount) * 1000) / 10 : 0;
-  return { totalAmount, totalCostOfGoods, totalProfit, profitMargin };
-};
+  const discountAmount = discountType === "percent"
+    ? subtotal * discount / 100
+    : Math.min(discount, subtotal);
+  const afterDiscount = Math.max(0, subtotal - discountAmount);
+  const taxAmount = afterDiscount * tax / 100;
+  const totalAmount = afterDiscount + taxAmount;
+  const totalProfit = afterDiscount - totalCostOfGoods;
+  const profitMargin = subtotal > 0 ? Math.round((totalProfit / subtotal) * 1000) / 10 : 0;
+  return { subtotal, discountAmount, taxAmount, totalAmount, totalCostOfGoods, totalProfit, profitMargin };
+}
 
 export const useSalesStore = create<SalesState>((set) => ({
   todaySales: [],
@@ -36,7 +51,6 @@ export const useSalesStore = create<SalesState>((set) => ({
 
   addSale: async (data) => {
     const { isOnline } = useUIStore.getState();
-    const totals = computeTotals(data.items);
 
     const items: SaleItem[] = data.items.map((item) => ({
       ...item,
@@ -44,7 +58,18 @@ export const useSalesStore = create<SalesState>((set) => ({
       profit: (item.unitPrice - (item.costPrice ?? 0)) * item.quantity,
     }));
 
-    const localSale = await salesDb.insert(data.userId, { ...data, ...totals, items });
+    const totals = computeTotals(items, data.discount, data.discountType, data.tax);
+    const invoiceNumber = await generateInvoiceNumber(data.userId);
+
+    const localSale = await salesDb.insert(data.userId, {
+      ...data,
+      ...totals,
+      items,
+      invoiceNumber,
+      discount: data.discount ?? 0,
+      discountType: data.discountType ?? "fixed",
+      tax: data.tax ?? 0,
+    });
 
     set((state) => ({ todaySales: [localSale, ...state.todaySales] }));
 
@@ -58,6 +83,11 @@ export const useSalesStore = create<SalesState>((set) => ({
           rawInput: data.rawInput,
           notes: data.notes,
           localId: localSale.localId,
+          customerName: data.customerName,
+          invoiceNumber,
+          discount: data.discount ?? 0,
+          discountType: data.discountType ?? "fixed",
+          tax: data.tax ?? 0,
         });
         await salesDb.markSynced(localSale.localId!, res.data.data._id);
       } catch {
@@ -72,11 +102,9 @@ export const useSalesStore = create<SalesState>((set) => ({
     set({ isLoading: true });
     try {
       const today = new Date().toISOString().split("T")[0];
-      // Load local first for instant display
       const localSales = await salesDb.getByDate(userId, today);
       set({ todaySales: localSales });
 
-      // Sync from server if online
       const { isOnline } = useUIStore.getState();
       if (isOnline) {
         try {

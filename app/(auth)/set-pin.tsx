@@ -101,11 +101,11 @@ export default function SetPinScreen() {
               By creating an account, you agree to our{" "}
               <Text
                 style={styles.termsLink}
-                onPress={() => Linking.openURL("https://ematech81.github.io/owoTrackTerms/")}
+                onPress={() => Linking.openURL("https://ematech81.github.io/owoTrackTerms/ ")}
               >
-                Terms of Service
+                Terms of Service.
               </Text>
-              .
+
             </Text>
           )}
 
