@@ -122,6 +122,7 @@ export default function DashboardScreen() {
   const [periodSales, setPeriodSales] = useState<Sale[]>([]);
   const [periodExpenses, setPeriodExpenses] = useState<Expense[]>([]);
   const [periodLoading, setPeriodLoading] = useState(false);
+  const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [aiTip, setAiTip] = useState<string | null>(null);
   const [aiTipLoading, setAiTipLoading] = useState(false);
   const [guideVisible, setGuideVisible] = useState(false);
@@ -145,6 +146,8 @@ export default function DashboardScreen() {
     if (!user?._id) return;
     loadSales(user._id);
     loadExpenses(user._id);
+    // Always load the last 5 sales regardless of date so older entries stay visible
+    salesDb.getRecent(user._id, 5).then(setRecentSales).catch(() => {});
   }, [user?._id, loadSales, loadExpenses]);
 
   const loadPeriod = useCallback(
@@ -482,9 +485,11 @@ export default function DashboardScreen() {
         <View style={styles.ledgerHeader}>
           <View>
             <Text style={styles.sectionTitle}>
-              {period === "today"
-                ? "Recent Transactions"
-                : `Transactions · ${period === "week" ? "7 Days" : "30 Days"}`}
+              {period === "today" && activeSales.length === 0 && recentSales.length > 0
+                ? "Recent Sales"
+                : period === "today"
+                  ? "Recent Transactions"
+                  : `Transactions · ${period === "week" ? "7 Days" : "30 Days"}`}
             </Text>
           </View>
           <TouchableOpacity
@@ -496,7 +501,7 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {activeSales.length === 0 && activeExpenses.length === 0 ? (
+        {activeSales.length === 0 && activeExpenses.length === 0 && recentSales.length === 0 ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIconWrap}>
               <Ionicons name="document-text-outline" size={28} color={colors.textMuted} />
@@ -510,7 +515,7 @@ export default function DashboardScreen() {
           </View>
         ) : (
           <View style={styles.ledgerList}>
-            {activeSales.slice(0, 3).map((sale) => (
+            {(activeSales.length > 0 ? activeSales.slice(0, 3) : recentSales.slice(0, 5)).map((sale) => (
               <View key={sale.localId || sale._id} style={styles.ledgerRow}>
                 <View style={[styles.ledgerIconWrap, styles.ledgerIconSale]}>
                   <Ionicons name="bag-handle-outline" size={17} color="#1B4332" />

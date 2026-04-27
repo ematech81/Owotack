@@ -71,7 +71,11 @@ export const useSalesStore = create<SalesState>((set) => ({
       tax: data.tax ?? 0,
     });
 
-    set((state) => ({ todaySales: [localSale, ...state.todaySales] }));
+    // Immediately re-read today's sales from SQLite so the home screen
+    // sees correct data as soon as it gains focus.
+    const today = new Date().toISOString().split("T")[0];
+    const refreshed = await salesDb.getByDate(data.userId, today);
+    set({ todaySales: refreshed });
 
     if (isOnline) {
       try {
@@ -102,9 +106,12 @@ export const useSalesStore = create<SalesState>((set) => ({
     set({ isLoading: true });
     try {
       const today = new Date().toISOString().split("T")[0];
+
+      // Always read local first
       const localSales = await salesDb.getByDate(userId, today);
       set({ todaySales: localSales });
 
+      // Then attempt server sync — never let this block the local result
       const { isOnline } = useUIStore.getState();
       if (isOnline) {
         try {
@@ -114,8 +121,13 @@ export const useSalesStore = create<SalesState>((set) => ({
           await salesDb.upsertFromServer(userId, res.data.data);
           const synced = await salesDb.getByDate(userId, today);
           set({ todaySales: synced });
-        } catch { /* use local data on network failure */ }
+        } catch {
+          // Network or sync error — local data already set above, no action needed
+        }
       }
+    } catch (err) {
+      // Local DB read failed — log but don't crash; todaySales stays as-is
+      console.warn("[salesStore] loadToday failed:", err);
     } finally {
       set({ isLoading: false });
     }

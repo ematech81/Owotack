@@ -925,7 +925,7 @@ export default function ReceiptScreen() {
       >
         <View style={screenS.headerRow}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/")}
             style={[screenS.headerBtn, { backgroundColor: colors.surface }, D.shadow.soft]}
           >
             <Ionicons name="arrow-back" size={18} color={colors.textPrimary} />
@@ -1013,7 +1013,7 @@ export default function ReceiptScreen() {
         <ActionButtons
           onShare={handleShare}
           onDownload={handleDownload}
-          onDone={() => router.replace("/(tabs)")}
+          onDone={() => router.replace("/(tabs)/")}
           isSharing={isSharing}
           isDownloading={isDownloading}
           colors={colors}
