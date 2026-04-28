@@ -25,6 +25,7 @@ import { OnboardingGuideModal } from "../../src/components/common/OnboardingGuid
 import { useTheme } from "../../src/hooks/useTheme";
 import { formatNaira } from "../../src/utils/formatters";
 import { aiService } from "../../src/services/aiService";
+import { broadcastService, IBroadcast } from "../../src/services/broadcastService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,6 +127,7 @@ export default function DashboardScreen() {
   const [aiTip, setAiTip] = useState<string | null>(null);
   const [aiTipLoading, setAiTipLoading] = useState(false);
   const [guideVisible, setGuideVisible] = useState(false);
+  const [broadcasts, setBroadcasts] = useState<IBroadcast[]>([]);
 
   const activeSales = period === "today" ? todaySales : periodSales;
   const activeExpenses = period === "today" ? todayExpenses : periodExpenses;
@@ -215,6 +217,7 @@ export default function DashboardScreen() {
     useCallback(() => {
       loadRef.current();
       loadTip();
+      broadcastService.getVisible().then(setBroadcasts).catch(() => {});
     }, [loadTip])
   );
 
@@ -291,6 +294,25 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* ── Broadcast Cards ── */}
+        {broadcasts.map((b) => (
+          <View key={b._id} style={styles.broadcastCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.broadcastTitle}>{b.title}</Text>
+              <Text style={styles.broadcastContent}>{b.content}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                broadcastService.dismiss(b._id);
+                setBroadcasts((prev) => prev.filter((x) => x._id !== b._id));
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={18} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+        ))}
 
         {/* ── Hero Revenue Card ── */}
         <LinearGradient
@@ -587,6 +609,15 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.background },
     container: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 56 },
+
+    // ── Broadcasts ──
+    broadcastCard: {
+      flexDirection: "row", alignItems: "flex-start", gap: 10,
+      backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#BFDBFE",
+      borderRadius: 12, padding: 14, marginBottom: 10,
+    },
+    broadcastTitle: { fontSize: 13, fontWeight: "700", color: "#1E40AF", marginBottom: 3 },
+    broadcastContent: { fontSize: 13, color: "#1E3A8A", lineHeight: 18 },
 
     // ── Header ──
     header: {
