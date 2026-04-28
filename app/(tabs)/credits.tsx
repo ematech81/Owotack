@@ -58,6 +58,7 @@ export default function CreditsScreen() {
   const [upgradeVisible, setUpgradeVisible] = useState(false);
   const [upgradeUsed, setUpgradeUsed] = useState(0);
   const [upgradeLimit, setUpgradeLimit] = useState(0);
+  const [phonePromptCredit, setPhonePromptCredit] = useState<ICredit | null>(null);
 
   const planId = user?.subscription?.plan ?? "free";
 
@@ -68,12 +69,8 @@ export default function CreditsScreen() {
     loadStats();
   }, []);
 
-  const handleWhatsAppReminder = async (credit: ICredit) => {
+  const sendWhatsApp = async (credit: ICredit, phone: string) => {
     if (!user) return;
-    if (!credit.customerPhone) {
-      Alert.alert("No Phone Number", "This customer has no phone number saved. Edit the credit to add one.");
-      return;
-    }
     const check = await checkWhatsAppLimit(user._id, planId);
     if (!check.allowed) {
       setUpgradeUsed(check.used);
@@ -81,27 +78,31 @@ export default function CreditsScreen() {
       setUpgradeVisible(true);
       return;
     }
-    // Convert Nigerian phone to WhatsApp international format
-    const digits = credit.customerPhone.replace(/\D/g, "");
+    const digits = phone.replace(/\D/g, "");
     const wa = digits.startsWith("234") ? digits : digits.startsWith("0") ? "234" + digits.slice(1) : "234" + digits;
     const businessName = user.businessName || user.name;
     const message =
       `Hello ${credit.customerName}! 👋\n\n` +
       `This is ${businessName}. You still owe ₦${credit.balance.toLocaleString()} for "${credit.description}".\n\n` +
-      `Please kindly make payment as soon as possible.\n\n` +
-      `Thank you! 🙏`;
+      `Please kindly make payment as soon as possible.\n\nThank you! 🙏`;
     const url = `https://wa.me/${wa}?text=${encodeURIComponent(message)}`;
     try {
       const canOpen = await Linking.canOpenURL(url);
-      if (!canOpen) {
-        Alert.alert("WhatsApp Not Found", "WhatsApp is not installed on this device.");
-        return;
-      }
+      if (!canOpen) { Alert.alert("WhatsApp Not Found", "WhatsApp is not installed on this device."); return; }
       await Linking.openURL(url);
       await recordWhatsAppUsage(user._id);
     } catch {
       Alert.alert("Error", "Could not open WhatsApp. Please try again.");
     }
+  };
+
+  const handleWhatsAppReminder = async (credit: ICredit) => {
+    if (!user) return;
+    if (!credit.customerPhone) {
+      setPhonePromptCredit(credit);
+      return;
+    }
+    await sendWhatsApp(credit, credit.customerPhone!);
   };
 
   const styles = makeStyles(colors);
@@ -229,7 +230,7 @@ export default function CreditsScreen() {
                   </View>
                 </View>
                 <View style={styles.creditRight}>
-                  {(credit.status === "overdue" || credit.status === "due_soon") && credit.customerPhone && (
+                  {(credit.status === "overdue" || credit.status === "due_soon") && (
                     <TouchableOpacity
                       style={styles.waBtn}
                       onPress={() => handleWhatsAppReminder(credit)}
@@ -280,7 +281,103 @@ export default function CreditsScreen() {
         used={upgradeUsed}
         limit={upgradeLimit}
       />
+
+      <AddPhoneModal
+        visible={phonePromptCredit !== null}
+        credit={phonePromptCredit}
+        onSaved={async (updatedCredit) => {
+          setPhonePromptCredit(null);
+          await sendWhatsApp(updatedCredit, updatedCredit.customerPhone!);
+        }}
+        onCancel={() => setPhonePromptCredit(null)}
+        colors={colors}
+        styles={styles}
+      />
     </SafeAreaView>
+  );
+}
+
+// ─── Add Phone Modal ──────────────────────────────────────────────────────────
+function AddPhoneModal({ visible, credit, onSaved, onCancel, colors, styles }: {
+  visible: boolean;
+  credit: ICredit | null;
+  onSaved: (updated: ICredit) => void;
+  onCancel: () => void;
+  colors: ReturnType<typeof useTheme>;
+  styles: ReturnType<typeof makeStyles>;
+}) {
+  const { updatePhone } = useCreditStore();
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => { if (!visible) setPhone(""); }, [visible]);
+
+  const isValid = phone.replace(/\D/g, "").length >= 10;
+
+  const handleSave = async () => {
+    if (!credit || !isValid) return;
+    setLoading(true);
+    try {
+      const updated = await updatePhone(credit._id, phone.trim());
+      onSaved(updated);
+    } catch {
+      Alert.alert("Error", "Could not save phone number. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <TouchableOpacity
+        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", alignItems: "center", padding: 24 }}
+        activeOpacity={1}
+        onPress={onCancel}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          style={{ width: "100%", backgroundColor: colors.background, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.border }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <Ionicons name="logo-whatsapp" size={22} color="#16A34A" />
+            <Text style={{ fontSize: 17, fontWeight: "700", color: colors.textPrimary }}>Add Phone Number</Text>
+          </View>
+          <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 20, lineHeight: 20 }}>
+            To send a WhatsApp reminder to{credit ? ` ${credit.customerName}` : " this customer"}, you need their phone number.
+          </Text>
+
+          <Text style={styles.formLabel}>Phone Number</Text>
+          <TextInput
+            style={[styles.formInput, { marginBottom: 20 }]}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="080XXXXXXXX"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="phone-pad"
+            autoFocus
+          />
+
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <TouchableOpacity
+              style={{ flex: 1, height: 48, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" }}
+              onPress={onCancel}
+            >
+              <Text style={{ fontSize: 15, fontWeight: "600", color: colors.textSecondary }}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ flex: 1, height: 48, borderRadius: 12, backgroundColor: isValid ? "#16A34A" : colors.border, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 }}
+              onPress={handleSave}
+              disabled={!isValid || loading}
+            >
+              <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+              <Text style={{ fontSize: 15, fontWeight: "700", color: "#fff" }}>
+                {loading ? "Saving..." : "Save & Send"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
   );
 }
 
@@ -709,16 +806,21 @@ function CreditDetailModal({ credit, onClose, colors, styles }: {
   colors: ReturnType<typeof useTheme>; styles: ReturnType<typeof makeStyles>;
 }) {
   const { recordPayment, deleteCredit } = useCreditStore();
+  const { user } = useAuthStore();
   const [payAmount, setPayAmount] = useState("");
   const [loading, setLoading] = useState(false);
-  const s = statusConfig(credit.status);
+  const [localCredit, setLocalCredit] = useState(credit);
+  const [showPhonePrompt, setShowPhonePrompt] = useState(false);
+  const s = statusConfig(localCredit.status);
+
+  const planId = user?.subscription?.plan ?? "free";
 
   const handlePayment = async () => {
     const amt = Number(payAmount);
     if (!amt || amt <= 0) { Alert.alert("", "Enter a valid payment amount"); return; }
     setLoading(true);
     try {
-      await recordPayment(credit._id, amt);
+      await recordPayment(localCredit._id, amt);
       Alert.alert("Recorded!", `Payment of ₦${amt.toLocaleString()} recorded`);
       setPayAmount("");
       onClose();
@@ -727,13 +829,27 @@ function CreditDetailModal({ credit, onClose, colors, styles }: {
     } finally { setLoading(false); }
   };
 
-  const handleWhatsApp = () => {
-    if (!credit.customerPhone) { Alert.alert("", "No phone number saved for this customer"); return; }
-    const phone = credit.customerPhone.replace(/\D/g, "").replace(/^0/, "234");
-    const msg = encodeURIComponent(
-      `Hello ${credit.customerName}, this is a reminder that you have an outstanding balance of ₦${credit.balance.toLocaleString()} due on ${formatDate(credit.dueDate)}. Kindly make payment. Thank you! - OwoTrack`
-    );
-    Linking.openURL(`whatsapp://send?phone=${phone}&text=${msg}`);
+  const handleWhatsApp = async () => {
+    if (!localCredit.customerPhone) {
+      setShowPhonePrompt(true);
+      return;
+    }
+    if (!user) return;
+    const check = await checkWhatsAppLimit(user._id, planId);
+    if (!check.allowed) { Alert.alert("Limit Reached", "Upgrade your plan to send more WhatsApp reminders."); return; }
+    const digits = localCredit.customerPhone.replace(/\D/g, "");
+    const wa = digits.startsWith("234") ? digits : digits.startsWith("0") ? "234" + digits.slice(1) : "234" + digits;
+    const businessName = user.businessName || user.name;
+    const message = `Hello ${localCredit.customerName}! 👋\n\nThis is ${businessName}. You still owe ₦${localCredit.balance.toLocaleString()} for "${localCredit.description}".\n\nPlease kindly make payment as soon as possible.\n\nThank you! 🙏`;
+    const url = `https://wa.me/${wa}?text=${encodeURIComponent(message)}`;
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) { Alert.alert("WhatsApp Not Found", "WhatsApp is not installed on this device."); return; }
+      await Linking.openURL(url);
+      await recordWhatsAppUsage(user._id);
+    } catch {
+      Alert.alert("Error", "Could not open WhatsApp.");
+    }
   };
 
   const handleDelete = () => {
@@ -747,7 +863,7 @@ function CreditDetailModal({ credit, onClose, colors, styles }: {
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
         <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>{credit.customerName}</Text>
+          <Text style={styles.modalTitle}>{localCredit.customerName}</Text>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
@@ -763,35 +879,35 @@ function CreditDetailModal({ credit, onClose, colors, styles }: {
           <View style={styles.detailAmountCard}>
             <View style={styles.detailAmountRow}>
               <Text style={styles.detailAmountLabel}>Original Amount</Text>
-              <Text style={styles.detailAmountValue}>{formatNaira(credit.amount)}</Text>
+              <Text style={styles.detailAmountValue}>{formatNaira(localCredit.amount)}</Text>
             </View>
             <View style={styles.detailAmountRow}>
               <Text style={styles.detailAmountLabel}>Amount Paid</Text>
-              <Text style={[styles.detailAmountValue, { color: colors.primary }]}>{formatNaira(credit.amountPaid)}</Text>
+              <Text style={[styles.detailAmountValue, { color: colors.primary }]}>{formatNaira(localCredit.amountPaid)}</Text>
             </View>
             <View style={[styles.detailAmountRow, styles.detailAmountRowLast]}>
               <Text style={[styles.detailAmountLabel, { fontWeight: "700" }]}>Balance</Text>
-              <Text style={[styles.detailAmountValue, { color: "#EF4444", fontWeight: "800" }]}>{formatNaira(credit.balance)}</Text>
+              <Text style={[styles.detailAmountValue, { color: "#EF4444", fontWeight: "800" }]}>{formatNaira(localCredit.balance)}</Text>
             </View>
           </View>
 
           <View style={styles.detailInfoRow}>
             <Ionicons name="calendar-outline" size={15} color={colors.textMuted} />
-            <Text style={styles.detailInfoText}>Due: {formatDate(credit.dueDate)}</Text>
+            <Text style={styles.detailInfoText}>Due: {formatDate(localCredit.dueDate)}</Text>
           </View>
           <View style={styles.detailInfoRow}>
             <Ionicons name="cart-outline" size={15} color={colors.textMuted} />
-            <Text style={styles.detailInfoText}>{credit.description}</Text>
+            <Text style={styles.detailInfoText}>{localCredit.description}</Text>
           </View>
-          {credit.customerPhone && (
+          {localCredit.customerPhone && (
             <View style={styles.detailInfoRow}>
               <Ionicons name="call-outline" size={15} color={colors.textMuted} />
-              <Text style={styles.detailInfoText}>{credit.customerPhone}</Text>
+              <Text style={styles.detailInfoText}>{localCredit.customerPhone}</Text>
             </View>
           )}
 
           {/* Record Payment */}
-          {credit.status !== "paid" && (
+          {localCredit.status !== "paid" && (
             <>
               <Text style={[styles.formLabel, { marginTop: 24 }]}>Record Payment</Text>
               <View style={styles.paymentRow}>
@@ -821,10 +937,10 @@ function CreditDetailModal({ credit, onClose, colors, styles }: {
           </TouchableOpacity>
 
           {/* Payment history */}
-          {credit.payments.length > 0 && (
+          {localCredit.payments.length > 0 && (
             <>
               <Text style={[styles.formLabel, { marginTop: 20 }]}>Payment History</Text>
-              {credit.payments.map((p, i) => (
+              {localCredit.payments.map((p, i) => (
                 <View key={i} style={styles.paymentHistoryRow}>
                   <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
                   <Text style={styles.paymentHistoryText}>
@@ -841,6 +957,19 @@ function CreditDetailModal({ credit, onClose, colors, styles }: {
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
+
+      <AddPhoneModal
+        visible={showPhonePrompt}
+        credit={localCredit}
+        onSaved={async (updatedCredit) => {
+          setLocalCredit(updatedCredit);
+          setShowPhonePrompt(false);
+          await handleWhatsApp();
+        }}
+        onCancel={() => setShowPhonePrompt(false)}
+        colors={colors}
+        styles={styles}
+      />
     </Modal>
   );
 }

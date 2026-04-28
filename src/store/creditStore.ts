@@ -11,6 +11,7 @@ interface CreditState {
   loadStats: () => Promise<void>;
   addCredit: (data: Partial<ICredit>) => Promise<void>;
   recordPayment: (id: string, amount: number, note?: string) => Promise<void>;
+  updatePhone: (id: string, phone: string) => Promise<ICredit>;
   deleteCredit: (id: string) => Promise<void>;
   setFilter: (f: CreditState["activeFilter"]) => void;
 }
@@ -50,6 +51,14 @@ export const useCreditStore = create<CreditState>((set, get) => ({
       credits: s.credits.map((c) => (c._id === id ? updated : c)),
     }));
     get().loadStats();
+  },
+
+  updatePhone: async (id, phone) => {
+    const updated = await creditService.updatePhone(id, phone);
+    set((s) => ({
+      credits: s.credits.map((c) => (c._id === id ? updated : c)),
+    }));
+    return updated;
   },
 
   deleteCredit: async (id) => {

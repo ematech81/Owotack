@@ -45,6 +45,11 @@ export const creditService = {
     return res.data.data;
   },
 
+  async updatePhone(id: string, phone: string) {
+    const res = await api.patch<ApiResponse<ICredit>>(`/credits/${id}/phone`, { phone });
+    return res.data.data;
+  },
+
   async delete(id: string) {
     await api.delete(`/credits/${id}`);
   },
