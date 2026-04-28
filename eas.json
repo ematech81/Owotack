@@ -7,16 +7,28 @@
     "development": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_KEY": "6b1fd0eb36ca9c691c4329dff758606f1e51ca8d1dcd2f0f1e57c2504beab6f9",
+        "EXPO_PUBLIC_API_URL": "https://owotracbackend-production.up.railway.app/api/v1"
       }
     },
     "preview": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_KEY": "6b1fd0eb36ca9c691c4329dff758606f1e51ca8d1dcd2f0f1e57c2504beab6f9",
+        "EXPO_PUBLIC_API_URL": "https://owotracbackend-production.up.railway.app/api/v1"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_KEY": "6b1fd0eb36ca9c691c4329dff758606f1e51ca8d1dcd2f0f1e57c2504beab6f9",
+        "EXPO_PUBLIC_API_URL": "https://owotracbackend-production.up.railway.app/api/v1"
       }
     }
   }
