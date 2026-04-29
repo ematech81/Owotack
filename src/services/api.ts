@@ -5,7 +5,7 @@ import { ApiIPAddress } from "../utils/config";
 import { useUIStore } from "../store/uiStore";
 
 const API_URL = ApiIPAddress;
-const APP_KEY = process.env.EXPO_PUBLIC_APP_KEY ?? "";
+// const APP_KEY = process.env.EXPO_PUBLIC_APP_KEY ?? "";
 
 // Callback registered by _layout.tsx — fires when refresh token is also expired
 type AuthFailHandler = () => void;
@@ -26,7 +26,6 @@ const api: AxiosInstance = axios.create({
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",
-    "x-app-key": APP_KEY,
   },
 });
 
@@ -77,7 +76,7 @@ api.interceptors.response.use(
         const response = await axios.post<ApiResponse<{ accessToken: string; refreshToken: string }>>(
           `${API_URL}/auth/refresh-token`,
           { refreshToken },
-          { headers: { "Content-Type": "application/json", "x-app-key": APP_KEY } }
+          { headers: { "Content-Type": "application/json" } }
         );
 
         const { accessToken, refreshToken: newRefresh } = response.data.data;
