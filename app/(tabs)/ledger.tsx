@@ -18,10 +18,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "../../src/store/authStore";
 import { salesDb } from "../../src/database/salesDb";
 import { expenseDb } from "../../src/database/expenseDb";
-import { Sale, Expense } from "../../src/types";
+import { Sale, Expense, ApiResponse } from "../../src/types";
 import { useTheme } from "../../src/hooks/useTheme";
 import { formatNaira } from "../../src/utils/formatters";
 import { draftStorage } from "../../src/utils/draft";
+import api from "../../src/services/api";
+import { useUIStore } from "../../src/store/uiStore";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -1041,7 +1043,26 @@ export default function LedgerScreen() {
 
   const loadRef = useRef(load);
   useEffect(() => { loadRef.current = load; }, [load]);
-  useFocusEffect(useCallback(() => { loadRef.current(); }, []));
+  useFocusEffect(useCallback(() => {
+    loadRef.current();
+    // Background sync: pull last 30 days so ledger has full history when opened directly
+    const uid = useAuthStore.getState().user?._id;
+    const { isOnline } = useUIStore.getState();
+    if (uid && isOnline) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const start = thirtyDaysAgo.toISOString().split("T")[0];
+      const end = new Date().toISOString().split("T")[0];
+      Promise.all([
+        api.get<ApiResponse<Sale[]>>("/sales", { params: { startDate: `${start}T00:00:00.000Z`, endDate: `${end}T23:59:59.999Z`, limit: 100 } })
+          .then((r) => salesDb.upsertFromServer(uid, r.data.data).then(() => loadRef.current()))
+          .catch(() => {}),
+        api.get<ApiResponse<Expense[]>>("/expenses", { params: { startDate: `${start}T00:00:00.000Z`, endDate: `${end}T23:59:59.999Z`, limit: 100 } })
+          .then((r) => expenseDb.upsertFromServer(uid, r.data.data).then(() => loadRef.current()))
+          .catch(() => {}),
+      ]);
+    }
+  }, []));
   useEffect(() => { load(); }, [load]);
 
   const filteredEntries = useMemo(() => {

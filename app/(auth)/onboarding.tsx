@@ -11,6 +11,7 @@ import {
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "../../src/components/common/Button";
 import { useAuthStore } from "../../src/store/authStore";
 import { colors } from "../../src/constants/colors";
@@ -60,6 +61,7 @@ export default function OnboardingScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList<Slide>>(null);
   const { completeOnboarding } = useAuthStore();
+  const insets = useSafeAreaInsets();
 
   const goToPhone = async () => {
     await completeOnboarding();
@@ -106,7 +108,7 @@ export default function OnboardingScreen() {
         }}
       />
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 16, 40) }]}>
         <View style={styles.dots}>
           {SLIDES.map((_, i) => (
             <View
@@ -172,8 +174,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 24,
-    paddingBottom: 40,
+    paddingHorizontal: 24,
+    paddingTop: 24,
     alignItems: "center",
   },
   dots: { flexDirection: "row", gap: 8, marginBottom: 24 },

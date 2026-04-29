@@ -61,12 +61,15 @@ export const useExpenseStore = create<ExpenseState>((set) => ({
       const localExpenses = await expenseDb.getByDate(userId, today);
       set({ todayExpenses: localExpenses });
 
-      // Sync from server if online
+      // Sync last 30 days from server so ledger + week/month views all have data
       const { isOnline } = useUIStore.getState();
       if (isOnline) {
         try {
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          const startDate = thirtyDaysAgo.toISOString().split("T")[0];
           const res = await api.get<ApiResponse<Expense[]>>("/expenses", {
-            params: { startDate: `${today}T00:00:00.000Z`, endDate: `${today}T23:59:59.999Z`, limit: 100 },
+            params: { startDate: `${startDate}T00:00:00.000Z`, endDate: `${today}T23:59:59.999Z`, limit: 100 },
           });
           await expenseDb.upsertFromServer(userId, res.data.data);
           const synced = await expenseDb.getByDate(userId, today);

@@ -1015,62 +1015,92 @@ const stripS = StyleSheet.create({
 
 function ActionButtons({
   draftSavedAt,
-  onDraft, onSubmit,
+  onCancel, onDraft, onSubmit,
   loading, disabled,
 }: {
   draftSavedAt: string | null;
+  onCancel: () => void;
   onDraft: () => void;
   onSubmit: () => void;
   loading?: boolean;
   disabled?: boolean;
 }) {
-  return (
-    <View style={actionS.row}>
-      {!draftSavedAt ? (
+  if (draftSavedAt) {
+    // Draft saved: Submit on top full-width, "Start Another" below full-width
+    return (
+      <View style={actionS.stack}>
+        <Pressable
+          onPress={onSubmit}
+          disabled={loading || disabled}
+          style={actionS.submitWrap}
+        >
+          <LinearGradient
+            colors={loading ? [colors.textMuted, colors.textMuted] : [colors.primary, colors.primary + "DD"]}
+            style={actionS.submitGrad}
+          >
+            <Ionicons
+              name={loading ? "hourglass-outline" : "checkmark-circle-outline"}
+              size={20} color="#fff"
+            />
+            <Text style={actionS.submitText}>
+              {loading ? "Recording..." : "Submit Sale"}
+            </Text>
+          </LinearGradient>
+        </Pressable>
+
         <TouchableOpacity
-          style={[actionS.draftBtn, disabled && { opacity: 0.5 }]}
-          onPress={onDraft}
-          disabled={disabled}
+          style={actionS.cancelBtn}
+          onPress={onCancel}
           activeOpacity={0.75}
         >
-          <Ionicons name="bookmark-outline" size={18} color={colors.primary} />
-          <Text style={actionS.draftText}>Save Draft</Text>
+          <Ionicons name="add-circle-outline" size={18} color={colors.textSecondary} />
+          <Text style={actionS.cancelText}>Start Another</Text>
         </TouchableOpacity>
-      ) : null}
+      </View>
+    );
+  }
 
+  // No draft yet: Save on top full-width, Cancel below full-width
+  return (
+    <View style={actionS.stack}>
       <Pressable
-        onPress={onSubmit}
+        onPress={onDraft}
         disabled={loading || disabled}
-        style={[actionS.submitWrap, !draftSavedAt && { flex: 2 }]}
+        style={actionS.submitWrap}
       >
         <LinearGradient
-          colors={loading ? [colors.textMuted, colors.textMuted] : [colors.primary, colors.primary + "DD"]}
+          colors={disabled ? [colors.textMuted, colors.textMuted] : [colors.primary, colors.primary + "DD"]}
           style={actionS.submitGrad}
         >
-          <Ionicons
-            name={loading ? "hourglass-outline" : "checkmark-circle-outline"}
-            size={20} color="#fff"
-          />
-          <Text style={actionS.submitText}>
-            {loading ? "Recording..." : draftSavedAt ? "Submit Sale" : "Submit"}
-          </Text>
+          <Ionicons name="bookmark-outline" size={20} color="#fff" />
+          <Text style={actionS.submitText}>Save</Text>
         </LinearGradient>
       </Pressable>
+
+      <TouchableOpacity
+        style={[actionS.cancelBtn, disabled && { opacity: 0.5 }]}
+        onPress={onCancel}
+        disabled={disabled}
+        activeOpacity={0.75}
+      >
+        <Ionicons name="close-outline" size={18} color={colors.textSecondary} />
+        <Text style={actionS.cancelText}>Cancel</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const actionS = StyleSheet.create({
-  row: { flexDirection: "row", gap: 10, marginBottom: 16 },
-  draftBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center",
+  stack: { gap: 10, marginBottom: 16 },
+  cancelBtn: {
+    flexDirection: "row", alignItems: "center",
     justifyContent: "center", gap: 6,
-    borderWidth: 1.5, borderColor: colors.primary,
+    borderWidth: 1.5, borderColor: colors.border,
     borderRadius: D.radius.xl, paddingVertical: 14,
-    backgroundColor: colors.primary + "08",
+    backgroundColor: colors.surface,
   },
-  draftText: { color: colors.primary, fontSize: 14, fontWeight: "700" },
-  submitWrap: { flex: 3, borderRadius: D.radius.xl, overflow: "hidden" },
+  cancelText: { color: colors.textSecondary, fontSize: 14, fontWeight: "700" },
+  submitWrap: { borderRadius: D.radius.xl, overflow: "hidden" },
   submitGrad: {
     flexDirection: "row", alignItems: "center",
     justifyContent: "center", gap: 8, paddingVertical: 16,
@@ -1161,23 +1191,43 @@ export default function AddSaleScreen() {
     );
   };
 
+  const resetForm = async () => {
+    if (draftKey) await draftStorage.clear(draftKey);
+    setDraftSavedAt(null);
+    setManualItems([emptyItem()]);
+    setCollapsedItems([false]);
+    setPaymentType("cash");
+    setParsedResult(null);
+    setTranscript("");
+    setCustomerName("");
+    setSaleDate(new Date());
+    setDiscount(0); setDiscountType("fixed"); setTax(0);
+    setIsParsing(false);
+  };
+
+  const handleCancel = async () => {
+    if (draftSavedAt) {
+      // Draft exists — "Start Another" just resets without confirmation
+      await resetForm();
+    } else {
+      // No draft — confirm before discarding typed input
+      const hasInput = mode === "manual"
+        ? manualItems.some((i) => i.productName?.trim() || (i.unitPrice ?? 0) > 0)
+        : !!transcript || !!parsedResult;
+      if (!hasInput) { await resetForm(); return; }
+      Alert.alert("Cancel Entry", "Clear this entry and start fresh?", [
+        { text: "Keep Editing", style: "cancel" },
+        { text: "Cancel Entry", style: "destructive", onPress: resetForm },
+      ]);
+    }
+  };
+
   const handleDiscard = () => {
     Alert.alert("Discard Draft", "Clear this draft and start fresh?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Discard", style: "destructive",
-        onPress: async () => {
-          if (draftKey) await draftStorage.clear(draftKey);
-          setDraftSavedAt(null);
-          setManualItems([emptyItem()]);
-          setCollapsedItems([false]);
-          setPaymentType("cash");
-          setParsedResult(null);
-          setTranscript("");
-          setCustomerName("");
-          setSaleDate(new Date());
-          setDiscount(0); setDiscountType("fixed"); setTax(0);
-        },
+        onPress: resetForm,
       },
     ]);
   };
@@ -1364,13 +1414,35 @@ export default function AddSaleScreen() {
           {mode === "voice" && (
             <>
               {!parsedResult && !isParsing && (
-                <VoiceInput
-                  onTranscript={handleTranscript}
-                  hint={"Speak your sale naturally\ne.g. \"I sell 5 bags rice 45k each\""}
-                />
+                <>
+                  <VoiceInput
+                    onTranscript={handleTranscript}
+                    hint={"Speak your sale naturally\ne.g. \"I sell 5 bags rice 45k each\""}
+                  />
+                  <TouchableOpacity
+                    style={[screenS.voiceCancelBtn]}
+                    onPress={handleCancel}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="close-outline" size={18} color={colors.textSecondary} />
+                    <Text style={screenS.voiceCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                </>
               )}
 
-              {isParsing && <ParsingState />}
+              {isParsing && (
+                <>
+                  <ParsingState />
+                  <TouchableOpacity
+                    style={[screenS.voiceCancelBtn]}
+                    onPress={handleCancel}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="close-outline" size={18} color={colors.textSecondary} />
+                    <Text style={screenS.voiceCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                </>
+              )}
 
               {parsedResult && !isParsing && (
                 <>
@@ -1392,6 +1464,7 @@ export default function AddSaleScreen() {
 
                   <ActionButtons
                     draftSavedAt={draftSavedAt}
+                    onCancel={handleCancel}
                     onDraft={handleSaveDraftVoice}
                     onSubmit={handleSubmitVoice}
                     loading={isSaving}
@@ -1404,8 +1477,6 @@ export default function AddSaleScreen() {
           {/* ── Manual Mode ── */}
           {mode === "manual" && (
             <>
-              {draftSavedAt && <DraftBanner savedAt={draftSavedAt} onDiscard={handleDiscard} />}
-
               <SaleDetailsBox
                 userId={user?._id ?? ""}
                 customerName={customerName}
@@ -1467,9 +1538,13 @@ export default function AddSaleScreen() {
               {/* Payment method */}
               <PaymentSelector value={paymentType} onChange={setPaymentType} />
 
+              {/* Draft banner sits just above action buttons */}
+              {draftSavedAt && <DraftBanner savedAt={draftSavedAt} onDiscard={handleDiscard} />}
+
               {/* Actions */}
               <ActionButtons
                 draftSavedAt={draftSavedAt}
+                onCancel={handleCancel}
                 onDraft={handleSaveDraftManual}
                 onSubmit={handleSubmitManual}
                 loading={isSaving}
@@ -1518,6 +1593,14 @@ const screenS = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   scroll: { paddingHorizontal: 16, paddingTop: 12 },
+  voiceCancelBtn: {
+    flexDirection: "row", alignItems: "center",
+    justifyContent: "center", gap: 6,
+    borderWidth: 1.5, borderColor: colors.border,
+    borderRadius: D.radius.xl, paddingVertical: 14,
+    backgroundColor: colors.surface, marginBottom: 16,
+  },
+  voiceCancelText: { color: colors.textSecondary, fontSize: 14, fontWeight: "700" },
   addItemBtn: {
     flexDirection: "row", alignItems: "center",
     justifyContent: "center", gap: 8,

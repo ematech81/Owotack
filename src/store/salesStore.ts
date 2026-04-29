@@ -111,12 +111,15 @@ export const useSalesStore = create<SalesState>((set) => ({
       const localSales = await salesDb.getByDate(userId, today);
       set({ todaySales: localSales });
 
-      // Then attempt server sync — never let this block the local result
+      // Sync last 30 days from server so ledger + week/month views all have data
       const { isOnline } = useUIStore.getState();
       if (isOnline) {
         try {
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          const startDate = thirtyDaysAgo.toISOString().split("T")[0];
           const res = await api.get<ApiResponse<Sale[]>>("/sales", {
-            params: { startDate: `${today}T00:00:00.000Z`, endDate: `${today}T23:59:59.999Z`, limit: 100 },
+            params: { startDate: `${startDate}T00:00:00.000Z`, endDate: `${today}T23:59:59.999Z`, limit: 100 },
           });
           await salesDb.upsertFromServer(userId, res.data.data);
           const synced = await salesDb.getByDate(userId, today);

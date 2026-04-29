@@ -93,11 +93,10 @@ export default function RootLayout() {
 
     // First-time user (hasEverLoggedIn = false)
     if (!hasOnboarded) {
-      // Has not seen onboarding yet — send there unless already on it
-      if (!inAuth || currentScreen === "login" || currentScreen === "unlock") {
+      // Allow login screen so "I already have account" tap works without redirect loop
+      if (!inAuth || currentScreen === "unlock") {
         router.replace("/(auth)/onboarding");
       }
-      // If inAuth and currentScreen is onboarding/phone/otp/etc → let them flow through
     }
     // hasOnboarded = true but hasEverLoggedIn = false → mid-registration, no redirect
   }, [isInitialized, isAuthenticated, hasOnboarded, hasEverLoggedIn, pinLocked, lastPhone, segmentPath]);
