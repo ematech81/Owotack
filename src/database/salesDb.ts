@@ -194,7 +194,7 @@ export const salesDb = {
              tax, tax_amount, total_amount, total_cost_of_goods, total_profit,
              profit_margin, payment_type, input_method, raw_input, notes, customer_name,
              invoice_number, sync_status, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?, ?)`,
           [
             id, serverId, userId,
             typeof sale.date === "string" ? sale.date : new Date(sale.date).toISOString(),
