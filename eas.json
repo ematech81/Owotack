@@ -1,35 +1,25 @@
 {
   "cli": {
-    "version": ">= 10.0.0",
-    "appVersionSource": "local"
+    "version": ">= 16.0.0"
   },
   "build": {
     "development": {
-      "android": {
-        "buildType": "apk"
-      },
-      "env": {
-        "EXPO_PUBLIC_APP_KEY": "6b1fd0eb36ca9c691c4329dff758606f1e51ca8d1dcd2f0f1e57c2504beab6f9",
-        "EXPO_PUBLIC_API_URL": "https://owotracbackend-production.up.railway.app/api/v1"
-      }
+      "developmentClient": true,
+      "distribution": "internal"
     },
     "preview": {
+      "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "env": {
-        "EXPO_PUBLIC_APP_KEY": "6b1fd0eb36ca9c691c4329dff758606f1e51ca8d1dcd2f0f1e57c2504beab6f9",
-        "EXPO_PUBLIC_API_URL": "https://owotracbackend-production.up.railway.app/api/v1"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
-      },
-      "env": {
-        "EXPO_PUBLIC_APP_KEY": "6b1fd0eb36ca9c691c4329dff758606f1e51ca8d1dcd2f0f1e57c2504beab6f9",
-        "EXPO_PUBLIC_API_URL": "https://owotracbackend-production.up.railway.app/api/v1"
       }
     }
+  },
+  "submit": {
+    "production": {}
   }
 }

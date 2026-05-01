@@ -1,23 +1,18 @@
 {
   "expo": {
-    "name": "OwoTrack (Test)",
+    "name": "OwoTrack",
     "slug": "owo-track",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "owotrack",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/images/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1A6B3C"
-    },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.owotrack.app.dev"
+      "bundleIdentifier": "com.owotrack.app"
     },
     "android": {
-      "package": "com.owotrack.app.dev",
+      "package": "com.owotrack.app",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -30,9 +25,21 @@
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
+    "web": {
+      "favicon": "./assets/images/favicon.png"
+    },
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 220,
+          "backgroundColor": "#1A6B3C",
+          "resizeMode": "contain"
+        }
+      ],
       [
         "expo-notifications",
         {
@@ -51,7 +58,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "environment": "staging",
+      "environment": "production",
       "router": {},
       "eas": {
         "projectId": "362da4b1-8941-47a5-9f01-5a7c9601415e"

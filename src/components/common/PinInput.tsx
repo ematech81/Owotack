@@ -1,5 +1,5 @@
-import React, { useRef } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useRef, useEffect, useCallback } from "react";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Keyboard } from "react-native";
 import { useTheme } from "../../hooks/useTheme";
 
 interface PinInputProps {
@@ -17,6 +17,32 @@ export const PinInput: React.FC<PinInputProps> = ({
 }) => {
   const colors = useTheme();
   const inputRef = useRef<TextInput>(null);
+  const keyboardVisible = useRef(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => {
+      keyboardVisible.current = true;
+    });
+    const hide = Keyboard.addListener("keyboardDidHide", () => {
+      keyboardVisible.current = false;
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  // When keyboard was dismissed via back button the input stays internally
+  // "focused", so focus() alone does nothing. Blur first to reset that state,
+  // then focus again to force the keyboard to reopen.
+  const handlePress = useCallback(() => {
+    if (!keyboardVisible.current) {
+      inputRef.current?.blur();
+      requestAnimationFrame(() => inputRef.current?.focus());
+    } else {
+      inputRef.current?.focus();
+    }
+  }, []);
 
   const handleChange = (text: string) => {
     const cleaned = text.replace(/\D/g, "").slice(0, length);
@@ -28,7 +54,7 @@ export const PinInput: React.FC<PinInputProps> = ({
   return (
     <TouchableOpacity
       activeOpacity={1}
-      onPress={() => inputRef.current?.focus()}
+      onPress={handlePress}
       style={styles.row}
     >
       {Array.from({ length }).map((_, i) => (
