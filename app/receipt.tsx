@@ -788,7 +788,7 @@ function ActionButtons({
         style={[actionS.doneBtn, { backgroundColor: colors.surface, borderColor: colors.border }, D.shadow.soft]}
       >
         <Ionicons name="checkmark-circle-outline" size={18} color={colors.textSecondary} />
-        <Text style={[actionS.doneBtnText, { color: colors.textSecondary }]}>Done — Back to Home</Text>
+        <Text style={[actionS.doneBtnText, { color: colors.textSecondary }]}>Done — View Transactions</Text>
       </PressScale>
     </View>
   );
@@ -1013,7 +1013,7 @@ export default function ReceiptScreen() {
         <ActionButtons
           onShare={handleShare}
           onDownload={handleDownload}
-          onDone={() => router.replace("/(tabs)/")}
+          onDone={() => router.replace("/(tabs)/ledger")}
           isSharing={isSharing}
           isDownloading={isDownloading}
           colors={colors}

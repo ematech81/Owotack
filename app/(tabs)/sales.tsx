@@ -1134,6 +1134,8 @@ export default function AddSaleScreen() {
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<"fixed" | "percent">("fixed");
   const [tax, setTax] = useState(0);
+  const [saleSaved, setSaleSaved] = useState(false);
+  const saleSavedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const planId = user?.subscription?.plan ?? "free";
   const draftKey = user ? `draft:sales:${user._id}` : null;
@@ -1278,7 +1280,9 @@ export default function AddSaleScreen() {
       if (draftKey) await draftStorage.clear(draftKey);
       setDraftSavedAt(null); setTranscript(""); setParsedResult(null);
       setCustomerName(""); setSaleDate(new Date());
-      router.push({ pathname: "/receipt", params: { saleId: sale.localId } });
+      setSaleSaved(true);
+      if (saleSavedTimer.current) clearTimeout(saleSavedTimer.current);
+      saleSavedTimer.current = setTimeout(() => setSaleSaved(false), 2500);
     } catch (err) {
       Alert.alert("Save Failed", saveErrorMessage(err));
     } finally {
@@ -1339,7 +1343,9 @@ export default function AddSaleScreen() {
       setDraftSavedAt(null); setManualItems([emptyItem()]); setCollapsedItems([false]);
       setCustomerName(""); setSaleDate(new Date());
       setDiscount(0); setDiscountType("fixed"); setTax(0);
-      router.push({ pathname: "/receipt", params: { saleId: sale.localId } });
+      setSaleSaved(true);
+      if (saleSavedTimer.current) clearTimeout(saleSavedTimer.current);
+      saleSavedTimer.current = setTimeout(() => setSaleSaved(false), 2500);
     } catch (err) {
       Alert.alert("Save Failed", saveErrorMessage(err));
     } finally {
@@ -1373,6 +1379,14 @@ export default function AddSaleScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top"]}>
       <AppStatusBar />
       <OfflineBanner />
+
+      {/* ── Sale Saved Banner ─────────────────────────────────────────────── */}
+      {saleSaved && (
+        <View style={screenS.savedBanner}>
+          <Ionicons name="checkmark-circle" size={18} color="#fff" />
+          <Text style={screenS.savedBannerText}>Sale recorded! Ready for next entry.</Text>
+        </View>
+      )}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 
         {/* ── Hero Header ──────────────────────────────────────────────────── */}
@@ -1577,6 +1591,12 @@ export default function AddSaleScreen() {
 }
 
 const screenS = StyleSheet.create({
+  savedBanner: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#16A34A",
+    paddingHorizontal: 16, paddingVertical: 10,
+  },
+  savedBannerText: { color: "#fff", fontSize: 13, fontWeight: "700", flex: 1 },
   heroGrad: { paddingBottom: 16 },
   headerRow: {
     flexDirection: "row", alignItems: "flex-start",

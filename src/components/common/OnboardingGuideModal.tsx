@@ -8,6 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
 
@@ -79,7 +80,7 @@ export function OnboardingGuideModal({ visible, onClose }: Props) {
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={[s.safe, { backgroundColor: colors.background }]}>
+      <SafeAreaView edges={["top"]} style={[s.safe, { backgroundColor: colors.background }]}>
 
         {/* Header */}
         <View style={[s.header, { borderBottomColor: colors.border }]}>
@@ -144,7 +145,7 @@ export function OnboardingGuideModal({ visible, onClose }: Props) {
 
           <View style={{ height: 24 }} />
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

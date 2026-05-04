@@ -759,7 +759,7 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
     nameText: { fontSize: 18, fontWeight: "800", color: colors.textPrimary, marginTop: 1 },
     helpBtn: {
       width: 36, height: 36, borderRadius: 18,
-      alignItems: "center", justifyContent: "center",
+      alignItems: "center", justifyContent: "center", 
     },
     notifBtn: {
       width: 42,
