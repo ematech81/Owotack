@@ -15,7 +15,7 @@ import { useSalesStore } from "../../src/store/salesStore";
 import { useStockStore } from "../../src/store/stockStore";
 import { OfflineBanner } from "../../src/components/common/OfflineBanner";
 import { AppStatusBar } from "../../src/components/common/AppStatusBar";
-import { VoiceInput } from "../../src/components/common/VoiceInput";
+import { VoiceInput, VoiceInputHandle } from "../../src/components/common/VoiceInput";
 import { ProductPickerInput } from "../../src/components/common/ProductPickerInput";
 import { DraftBanner } from "../../src/components/common/DraftBanner";
 import { CustomerPickerInput } from "../../src/components/common/CustomerPickerInput";
@@ -1136,6 +1136,7 @@ export default function AddSaleScreen() {
   const [tax, setTax] = useState(0);
   const [saleSaved, setSaleSaved] = useState(false);
   const saleSavedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceInputRef = useRef<VoiceInputHandle>(null);
 
   const planId = user?.subscription?.plan ?? "free";
   const draftKey = user ? `draft:sales:${user._id}` : null;
@@ -1208,6 +1209,7 @@ export default function AddSaleScreen() {
   };
 
   const handleCancel = async () => {
+    voiceInputRef.current?.cancel();
     if (draftSavedAt) {
       // Draft exists — "Start Another" just resets without confirmation
       await resetForm();
@@ -1430,6 +1432,7 @@ export default function AddSaleScreen() {
               {!parsedResult && !isParsing && (
                 <>
                   <VoiceInput
+                    ref={voiceInputRef}
                     onTranscript={handleTranscript}
                     hint={"Speak your sale naturally\ne.g. \"I sell 5 bags rice 45k each\""}
                   />

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, Animated,
@@ -23,18 +23,37 @@ interface VoiceInputProps {
   hint?: string;
 }
 
+export interface VoiceInputHandle {
+  cancel: () => void;
+}
+
 type State = "idle" | "recording" | "processing";
 
-export const VoiceInput: React.FC<VoiceInputProps> = ({
+export const VoiceInput = forwardRef<VoiceInputHandle, VoiceInputProps>(function VoiceInput({
   onTranscript,
   hint = 'e.g. "I sell 5 bags rice 45k each"',
-}) => {
+}, ref) {
   const colors = useTheme();
   const [state, setState] = useState<State>("idle");
   const [error, setError] = useState("");
   const [showTips, setShowTips] = useState(true);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useImperativeHandle(ref, () => ({
+    cancel: async () => {
+      if (recordingRef.current) {
+        try { await recordingRef.current.stopAndUnloadAsync(); } catch { /* ignore */ }
+        recordingRef.current = null;
+      }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
+      pulseAnim.stopAnimation();
+      pulseAnim.setValue(1);
+      setState("idle");
+      setError("");
+      setShowTips(true);
+    },
+  }));
 
   // Stop and release recording if the component unmounts mid-session
   useEffect(() => {
@@ -211,7 +230,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
       ) : null}
     </View>
   );
-};
+});
 
 const makeStyles = (colors: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
