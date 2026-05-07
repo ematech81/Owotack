@@ -370,7 +370,7 @@ export default function DashboardScreen() {
 
         {/* ── Hero Revenue Card ── */}
         <LinearGradient
-          colors={["#1B4332", "#2D6A4F", "#40916C"]}
+          colors={netProfit >= 0 ? ["#1a7a4a", "#22c55e"] : ["#991b1b", "#ef4444"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroCard}

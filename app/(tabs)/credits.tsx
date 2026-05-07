@@ -113,7 +113,7 @@ export default function CreditsScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.avatar}><Text style={styles.avatarText}>{initials2}</Text></View>
-          <Text style={styles.headerTitle}>OwoTrack</Text>
+          <Text style={styles.headerTitle}>Credit Management</Text>
         </View>
         <TouchableOpacity style={styles.notifBtn}>
           <Ionicons name="notifications" size={22} color={colors.primary} />
@@ -222,9 +222,9 @@ export default function CreditsScreen() {
                     <Ionicons name={s.icon} size={13} color={s.color} />
                     <Text style={[styles.creditStatusText, { color: s.color }]}>
                       {s.label}{credit.status === "overdue"
-                        ? ` · ${Math.ceil((Date.now() - new Date(credit.dueDate).getTime()) / 86400000)}d ago`
+                        ? ` · ${Math.floor(Date.now() / 86400000) - Math.floor(new Date(credit.dueDate).getTime() / 86400000)}d ago`
                         : credit.status === "due_soon"
-                        ? ` · ${Math.ceil((new Date(credit.dueDate).getTime() - Date.now()) / 86400000)}d left`
+                        ? ` · ${Math.max(0, Math.floor(new Date(credit.dueDate).getTime() / 86400000) - Math.floor(Date.now() / 86400000))}d left`
                         : ""}
                     </Text>
                   </View>
