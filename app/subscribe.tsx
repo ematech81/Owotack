@@ -1,276 +1,7 @@
-// import React, { useEffect, useState } from "react";
-// import {
-//   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-//   Alert, ActivityIndicator, Linking,
-// } from "react-native";
-// import { SafeAreaView } from "react-native-safe-area-context";
-// import { useRouter } from "expo-router";
-// import { Ionicons } from "@expo/vector-icons";
-// import { useSubscriptionStore } from "../src/store/subscriptionStore";
-// import { useAuthStore } from "../src/store/authStore";
-// import { PLANS, PlanConfig, PlanId, formatLimit } from "../src/config/plans";
-// import { colors } from "../src/constants/colors";
-// import { formatNaira } from "../src/utils/formatters";
-
-// const FEATURE_ROWS = [
-//   { label: "Sales / month", key: "salesPerMonth", unit: "" },
-//   { label: "Expenses / month", key: "expensesPerMonth", unit: "" },
-//   { label: "Active credits", key: "activeCredits", unit: "" },
-//   { label: "Stock items", key: "stockItems", unit: "" },
-//   { label: "AI chats / day", key: "aiChatsPerDay", unit: "" },
-//   { label: "Voice entries / month", key: "voicePerMonth", unit: "" },
-//   { label: "WhatsApp reminders", key: "whatsappReminders", unit: "" },
-//   { label: "Reports access", key: "reportsAccess", unit: "" },
-//   { label: "Export data", key: "canExport", unit: "" },
-// ] as const;
-
-// function limitDisplay(plan: PlanConfig, key: typeof FEATURE_ROWS[number]["key"]): string {
-//   const val = plan.limits[key as keyof typeof plan.limits];
-//   if (typeof val === "boolean") return val ? "Yes" : "No";
-//   if (val === "today") return "Today only";
-//   if (val === "weekly") return "7 days";
-//   if (val === "full") return "Full history";
-//   return formatLimit(val as number);
-// }
-
-// export default function SubscribeScreen() {
-//   const router = useRouter();
-//   const { user } = useAuthStore();
-//   const { status, isLoading, isVerifying, pendingReference, loadStatus, initializeCheckout, verifyPayment, cancelSubscription } =
-//     useSubscriptionStore();
-
-//   const [checkingOut, setCheckingOut] = useState<PlanId | null>(null);
-
-//   useEffect(() => {
-//     loadStatus();
-//   }, []);
-
-//   const currentPlan = user?.subscription?.plan ?? "free";
-
-//   const handleUpgrade = async (planId: PlanId) => {
-//     if (planId === currentPlan) return;
-//     if (planId === "free") {
-//       Alert.alert("Downgrade", "To downgrade to Starter, cancel your current subscription and it will revert at the end of the billing period.", [
-//         { text: "Cancel subscription", style: "destructive", onPress: handleCancel },
-//         { text: "Keep plan", style: "cancel" },
-//       ]);
-//       return;
-//     }
-
-//     setCheckingOut(planId);
-//     try {
-//       const url = await initializeCheckout(planId);
-//       await Linking.openURL(url);
-//     } catch {
-//       Alert.alert("Error", "Could not start checkout. Please try again.");
-//     } finally {
-//       setCheckingOut(null);
-//     }
-//   };
-
-//   const handleVerify = async () => {
-//     const ref = pendingReference;
-//     if (!ref) {
-//       Alert.alert("", "Enter the payment reference or tap verify after returning from checkout.");
-//       return;
-//     }
-//     try {
-//       await verifyPayment(ref);
-//       Alert.alert("Payment Confirmed!", "Your plan has been upgraded.");
-//       router.back();
-//     } catch {
-//       Alert.alert("Verification Failed", "We could not confirm your payment. Try again or contact support.");
-//     }
-//   };
-
-//   const handleCancel = () => {
-//     Alert.alert("Cancel Subscription", "Your plan will revert to Starter at the end of this billing period.", [
-//       { text: "Yes, cancel", style: "destructive", onPress: async () => {
-//         try {
-//           await cancelSubscription();
-//           Alert.alert("Cancelled", "Your subscription has been cancelled.");
-//         } catch {
-//           Alert.alert("Error", "Could not cancel. Please try again.");
-//         }
-//       }},
-//       { text: "Keep plan", style: "cancel" },
-//     ]);
-//   };
-
-//   if (isLoading) {
-//     return (
-//       <SafeAreaView style={s.safe}>
-//         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 80 }} />
-//       </SafeAreaView>
-//     );
-//   }
-
-//   return (
-//     <SafeAreaView style={s.safe}>
-//       <View style={s.header}>
-//         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-//           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-//         </TouchableOpacity>
-//         <Text style={s.headerTitle}>Upgrade Plan</Text>
-//         <View style={{ width: 36 }} />
-//       </View>
-
-//       <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
-//         <Text style={s.subtitle}>Choose the plan that fits your business</Text>
-
-//         {PLANS.map((plan) => {
-//           const isCurrent = plan.id === currentPlan;
-//           const isActive = status?.status === "active" && isCurrent;
-
-//           return (
-//             <View
-//               key={plan.id}
-//               style={[s.planCard, isCurrent && s.planCardActive, plan.highlight && !isCurrent && s.planCardHighlight]}
-//             >
-//               {plan.badge && !isCurrent && (
-//                 <View style={[s.badge, { backgroundColor: plan.color }]}>
-//                   <Text style={s.badgeText}>{plan.badge}</Text>
-//                 </View>
-//               )}
-//               {isCurrent && (
-//                 <View style={[s.badge, { backgroundColor: colors.primary }]}>
-//                   <Text style={s.badgeText}>{isActive ? "Current Plan" : "Your Plan"}</Text>
-//                 </View>
-//               )}
-
-//               <View style={s.planTop}>
-//                 <View>
-//                   <Text style={[s.planName, { color: plan.color }]}>{plan.name}</Text>
-//                   <Text style={s.planPrice}>
-//                     {plan.priceNaira === 0 ? "Free" : `${formatNaira(plan.priceNaira)}/mo`}
-//                   </Text>
-//                 </View>
-//                 {!isCurrent && (
-//                   <TouchableOpacity
-//                     style={[s.upgradeBtn, { backgroundColor: plan.color }, checkingOut === plan.id && s.upgradeBtnLoading]}
-//                     onPress={() => handleUpgrade(plan.id)}
-//                     disabled={checkingOut !== null}
-//                   >
-//                     {checkingOut === plan.id
-//                       ? <ActivityIndicator size="small" color="#fff" />
-//                       : <Text style={s.upgradeBtnText}>
-//                           {currentPlan !== "free" && plan.id === "free" ? "Cancel" : "Select"}
-//                         </Text>
-//                     }
-//                   </TouchableOpacity>
-//                 )}
-//               </View>
-
-//               <View style={s.divider} />
-
-//               {FEATURE_ROWS.map((row) => (
-//                 <View key={row.key} style={s.featureRow}>
-//                   <Text style={s.featureLabel}>{row.label}</Text>
-//                   <Text style={[s.featureVal, limitDisplay(plan, row.key) === "Unlimited" && { color: plan.color, fontWeight: "700" }]}>
-//                     {limitDisplay(plan, row.key)}
-//                   </Text>
-//                 </View>
-//               ))}
-//             </View>
-//           );
-//         })}
-
-//         {pendingReference && (
-//           <View style={s.verifyBox}>
-//             <Text style={s.verifyTitle}>Payment in progress?</Text>
-//             <Text style={s.verifySubtitle}>
-//               After completing payment in your browser, tap below to confirm your upgrade.
-//             </Text>
-//             <TouchableOpacity style={s.verifyBtn} onPress={handleVerify} disabled={isVerifying}>
-//               {isVerifying
-//                 ? <ActivityIndicator size="small" color={colors.white} />
-//                 : <Text style={s.verifyBtnText}>Confirm Payment</Text>
-//               }
-//             </TouchableOpacity>
-//           </View>
-//         )}
-
-//         {currentPlan !== "free" && status?.status === "active" && (
-//           <TouchableOpacity style={s.cancelLink} onPress={handleCancel}>
-//             <Text style={s.cancelLinkText}>Cancel subscription</Text>
-//           </TouchableOpacity>
-//         )}
-
-//         <View style={{ height: 40 }} />
-//       </ScrollView>
-//     </SafeAreaView>
-//   );
-// }
-
-// const s = StyleSheet.create({
-//   safe: { flex: 1, backgroundColor: colors.background },
-//   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
-//   backBtn: { padding: 8 },
-//   headerTitle: { fontSize: 18, fontWeight: "700", color: colors.textPrimary },
-//   body: { padding: 16, paddingTop: 8 },
-//   subtitle: { fontSize: 14, color: colors.textSecondary, textAlign: "center", marginBottom: 20 },
-
-//   planCard: {
-//     backgroundColor: colors.surface,
-//     borderRadius: 16,
-//     padding: 16,
-//     marginBottom: 16,
-//     borderWidth: 1.5,
-//     borderColor: colors.border,
-//     overflow: "hidden",
-//   },
-//   planCardActive: { borderColor: colors.primary, borderWidth: 2 },
-//   planCardHighlight: { borderColor: "#16A34A", borderWidth: 2 },
-
-//   badge: {
-//     position: "absolute", top: 12, right: 12,
-//     paddingHorizontal: 10, paddingVertical: 3,
-//     borderRadius: 20,
-//   },
-//   badgeText: { color: "#fff", fontSize: 10, fontWeight: "700" },
-
-//   planTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-//   planName: { fontSize: 20, fontWeight: "800" },
-//   planPrice: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
-
-//   upgradeBtn: {
-//     paddingHorizontal: 18, paddingVertical: 8,
-//     borderRadius: 20, minWidth: 70, alignItems: "center",
-//   },
-//   upgradeBtnLoading: { opacity: 0.7 },
-//   upgradeBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
-
-//   divider: { height: 1, backgroundColor: colors.border, marginVertical: 10 },
-
-//   featureRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5 },
-//   featureLabel: { fontSize: 13, color: colors.textSecondary, flex: 1 },
-//   featureVal: { fontSize: 13, color: colors.textPrimary, fontWeight: "500", textAlign: "right" },
-
-//   verifyBox: {
-//     backgroundColor: "#EFF6FF",
-//     borderRadius: 12,
-//     padding: 16,
-//     borderWidth: 1,
-//     borderColor: "#93C5FD",
-//     marginBottom: 16,
-//     alignItems: "center",
-//   },
-//   verifyTitle: { fontSize: 15, fontWeight: "700", color: "#1D4ED8", marginBottom: 6 },
-//   verifySubtitle: { fontSize: 13, color: "#3B82F6", textAlign: "center", lineHeight: 20, marginBottom: 12 },
-//   verifyBtn: { backgroundColor: "#2563EB", paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 },
-//   verifyBtnText: { color: "#fff", fontWeight: "700" },
-
-//   cancelLink: { alignItems: "center", padding: 12 },
-//   cancelLinkText: { color: colors.danger, fontSize: 14 },
-// });
-
-
-
-
 import React, { useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, ActivityIndicator, Linking, Animated, Dimensions, AppState, Modal, Pressable,
+  Alert, ActivityIndicator, Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -281,8 +12,7 @@ import { useAuthStore } from "../src/store/authStore";
 import { PLANS, PlanConfig, PlanId, formatLimit } from "../src/config/plans";
 import { colors } from "../src/constants/colors";
 import { formatNaira } from "../src/utils/formatters";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import { FlutterwaveWebView } from "../src/components/common/FlutterwaveWebView";
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 
@@ -336,17 +66,9 @@ function limitDisplay(plan: PlanConfig, key: typeof FEATURE_ROWS[number]["key"])
   return formatLimit(val as number);
 }
 
-function isUnlimited(str: string) {
-  return str === "Unlimited";
-}
-
-function isIncluded(str: string) {
-  return str === "Included";
-}
-
-function isExcluded(str: string) {
-  return str === "Not included";
-}
+function isUnlimited(str: string) { return str === "Unlimited"; }
+function isIncluded(str: string)  { return str === "Included"; }
+function isExcluded(str: string)  { return str === "Not included"; }
 
 // ─── Animated Press Wrapper ───────────────────────────────────────────────────
 
@@ -360,7 +82,7 @@ function PressScale({
 }) {
   const scale = useRef(new Animated.Value(1)).current;
   const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50 }).start();
-  const onOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50 }).start();
+  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 50 }).start();
 
   return (
     <Animated.View style={[{ transform: [{ scale }] }, style]}>
@@ -382,11 +104,9 @@ function HeroHeader({ onBack, currentPlan }: { onBack: () => void; currentPlan: 
       colors={[colors.primary + "20", colors.primary + "05", colors.background]}
       style={heroS.gradient}
     >
-      {/* Decorative circles */}
       <View style={heroS.circle1} />
       <View style={heroS.circle2} />
 
-      {/* Nav row */}
       <View style={heroS.navRow}>
         <TouchableOpacity onPress={onBack} style={[heroS.backBtn, D.shadow.soft]}>
           <Ionicons name="arrow-back" size={18} color={colors.textPrimary} />
@@ -399,7 +119,6 @@ function HeroHeader({ onBack, currentPlan }: { onBack: () => void; currentPlan: 
         </View>
       </View>
 
-      {/* Title block */}
       <View style={heroS.titleBlock}>
         <View style={[heroS.iconWrap, { backgroundColor: colors.primary + "20" }]}>
           <Ionicons name="rocket-outline" size={28} color={colors.primary} />
@@ -414,10 +133,7 @@ function HeroHeader({ onBack, currentPlan }: { onBack: () => void; currentPlan: 
 }
 
 const heroS = StyleSheet.create({
-  gradient: {
-    paddingBottom: 24,
-    overflow: "hidden",
-  },
+  gradient: { paddingBottom: 24, overflow: "hidden" },
   circle1: {
     position: "absolute",
     width: 200, height: 200, borderRadius: 100,
@@ -481,13 +197,8 @@ const pvbS = StyleSheet.create({
 
 // ─── Feature Row ──────────────────────────────────────────────────────────────
 
-function FeatureRow({
-  icon, label, value, planColor,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  planColor: string;
+function FeatureRow({ icon, label, value, planColor }: {
+  icon: string; label: string; value: string; planColor: string;
 }) {
   const unlimited = isUnlimited(value);
   const included  = isIncluded(value);
@@ -496,11 +207,7 @@ function FeatureRow({
   return (
     <View style={frS.row}>
       <View style={[frS.iconWrap, { backgroundColor: excluded ? "#F3F4F6" : planColor + "15" }]}>
-        <Ionicons
-          name={icon as any}
-          size={13}
-          color={excluded ? colors.textMuted : planColor}
-        />
+        <Ionicons name={icon as any} size={13} color={excluded ? colors.textMuted : planColor} />
       </View>
       <Text style={frS.label}>{label}</Text>
       <View style={frS.valueWrap}>
@@ -528,14 +235,10 @@ function FeatureRow({
 }
 
 const frS = StyleSheet.create({
-  row: {
-    flexDirection: "row", alignItems: "center",
-    gap: 10, paddingVertical: 8,
-  },
+  row: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
   iconWrap: {
     width: 28, height: 28, borderRadius: D.radius.sm,
-    alignItems: "center", justifyContent: "center",
-    flexShrink: 0,
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
   label: { flex: 1, fontSize: 13, color: colors.textSecondary, fontWeight: "500" },
   valueWrap: { alignItems: "flex-end" },
@@ -548,16 +251,13 @@ const frS = StyleSheet.create({
   checkText: { fontSize: 11, fontWeight: "700" },
   crossBadge: {
     width: 22, height: 22, borderRadius: D.radius.full,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center", justifyContent: "center",
+    backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center",
   },
 });
 
 // ─── Plan Card ────────────────────────────────────────────────────────────────
 
-function PlanCard({
-  plan, isCurrent, isActive, checkingOut, onSelect,
-}: {
+function PlanCard({ plan, isCurrent, isActive, checkingOut, onSelect }: {
   plan: PlanConfig;
   isCurrent: boolean;
   isActive: boolean;
@@ -573,20 +273,18 @@ function PlanCard({
       { borderColor: isCurrent ? colors.primary : isHighlighted ? plan.color : colors.border },
       (isCurrent || isHighlighted) && pcS.cardElevated,
     ]}>
-      {/* Top gradient strip */}
       <LinearGradient
         colors={[plan.color + "25", plan.color + "08"]}
         style={pcS.topStrip}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
       >
-        {/* Plan icon + name row */}
         <View style={pcS.topRow}>
           <View style={pcS.topLeft}>
             <View style={[pcS.planIcon, { backgroundColor: plan.color + "25" }]}>
               <Ionicons
                 name={
                   plan.id === "free" ? "leaf-outline" :
-                  plan.id === "pro" ? "flash-outline" : "diamond-outline"
+                  plan.id === "pro"  ? "flash-outline" : "diamond-outline"
                 }
                 size={20}
                 color={plan.color}
@@ -601,7 +299,6 @@ function PlanCard({
             </View>
           </View>
 
-          {/* Badge or current indicator */}
           {isCurrent ? (
             <View style={[pcS.currentBadge, { borderColor: colors.primary, backgroundColor: colors.primary + "15" }]}>
               <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
@@ -615,7 +312,6 @@ function PlanCard({
         </View>
       </LinearGradient>
 
-      {/* Features */}
       <View style={pcS.featuresWrap}>
         {FEATURE_ROWS.map((row, i) => (
           <React.Fragment key={row.key}>
@@ -632,7 +328,6 @@ function PlanCard({
         ))}
       </View>
 
-      {/* CTA */}
       {!isCurrent && (
         <View style={pcS.ctaWrap}>
           <PressScale onPress={onSelect} disabled={checkingOut !== null} style={{ borderRadius: D.radius.xl }}>
@@ -677,17 +372,9 @@ const pcS = StyleSheet.create({
     overflow: "hidden",
     ...D.shadow.soft,
   },
-  cardElevated: {
-    ...D.shadow.medium,
-  },
-  topStrip: {
-    padding: 16,
-    paddingBottom: 14,
-  },
-  topRow: {
-    flexDirection: "row", alignItems: "center",
-    justifyContent: "space-between",
-  },
+  cardElevated: { ...D.shadow.medium },
+  topStrip: { padding: 16, paddingBottom: 14 },
+  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   topLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
   planIcon: {
     width: 44, height: 44, borderRadius: D.radius.md,
@@ -702,11 +389,7 @@ const pcS = StyleSheet.create({
     borderRadius: D.radius.full, borderWidth: 1.5,
   },
   currentBadgeText: { fontSize: 11, fontWeight: "700" },
-  featuresWrap: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 4,
-  },
+  featuresWrap: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4 },
   featureDivider: { height: 1, opacity: 0.5 },
   ctaWrap: { padding: 14, paddingTop: 10 },
   ctaBtn: {
@@ -717,347 +400,9 @@ const pcS = StyleSheet.create({
   ctaBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
   activeFooter: {
     flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 6,
-    paddingVertical: 12,
+    justifyContent: "center", gap: 6, paddingVertical: 12,
   },
   activeFooterText: { fontSize: 13, fontWeight: "700" },
-});
-
-// ─── Verify Payment Card ──────────────────────────────────────────────────────
-
-function VerifyPaymentCard({
-  isVerifying, onVerify,
-}: {
-  isVerifying: boolean;
-  onVerify: () => void;
-}) {
-  const pulse = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.04, duration: 1000, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 1000, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-
-  return (
-    <View style={verifyS.card}>
-      <LinearGradient colors={["#EFF6FF", "#DBEAFE"]} style={verifyS.gradient}>
-        <View style={verifyS.row}>
-          <Animated.View style={[verifyS.iconWrap, { transform: [{ scale: pulse }] }]}>
-            <LinearGradient colors={["#3B82F6", "#2563EB"]} style={verifyS.iconGrad}>
-              <Ionicons name="shield-checkmark-outline" size={22} color="#fff" />
-            </LinearGradient>
-          </Animated.View>
-          <View style={verifyS.textBlock}>
-            <Text style={verifyS.title}>Payment in progress</Text>
-            <Text style={verifyS.sub}>
-              Return from your browser and tap below to confirm your upgrade.
-            </Text>
-          </View>
-        </View>
-
-        <PressScale onPress={onVerify} disabled={isVerifying} style={{ borderRadius: D.radius.xl }}>
-          <LinearGradient colors={["#2563EB", "#1D4ED8"]} style={verifyS.btn}>
-            {isVerifying ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                <Text style={verifyS.btnText}>Confirm Payment</Text>
-              </>
-            )}
-          </LinearGradient>
-        </PressScale>
-      </LinearGradient>
-    </View>
-  );
-}
-
-const verifyS = StyleSheet.create({
-  card: {
-    borderRadius: D.radius.xl, overflow: "hidden",
-    marginBottom: 16, borderWidth: 1.5, borderColor: "#93C5FD",
-    ...D.shadow.soft,
-  },
-  gradient: { padding: 16, gap: 14 },
-  row: { flexDirection: "row", gap: 14, alignItems: "flex-start" },
-  iconWrap: { flexShrink: 0 },
-  iconGrad: {
-    width: 48, height: 48, borderRadius: D.radius.md,
-    alignItems: "center", justifyContent: "center",
-  },
-  textBlock: { flex: 1, gap: 4 },
-  title: { fontSize: 15, fontWeight: "800", color: "#1D4ED8" },
-  sub: { fontSize: 13, color: "#3B82F6", lineHeight: 18, fontWeight: "500" },
-  btn: {
-    flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 8,
-    paddingVertical: 13, borderRadius: D.radius.xl,
-  },
-  btnText: { color: "#fff", fontSize: 14, fontWeight: "800" },
-});
-
-// ─── Payment Guide Modal ──────────────────────────────────────────────────────
-
-const GUIDE_STEPS = [
-  {
-    icon: "lock-closed-outline",
-    color: "#2563EB",
-    bg: "#DBEAFE",
-    title: "Secure payment opens",
-    body: "You'll be taken to Paystack's secure payment page to complete your subscription.",
-  },
-  {
-    icon: "card-outline",
-    color: "#16A34A",
-    bg: "#DCFCE7",
-    title: "Pay on Paystack",
-    body: "Enter your card details and complete the payment. It only takes a minute.",
-  },
-  {
-    icon: "return-down-back-outline",
-    color: "#D97706",
-    bg: "#FEF3C7",
-    title: "Return to this app",
-    body: "After payment, press the back button or switch back to OwoTrack manually.",
-  },
-  {
-    icon: "checkmark-circle-outline",
-    color: "#7C3AED",
-    bg: "#EDE9FE",
-    title: "Tap 'Confirm Payment'",
-    body: "A blue \"Confirm Payment\" button will appear at the top of this screen. Tap it to activate your plan instantly.",
-  },
-];
-
-function PaymentGuideModal({
-  visible,
-  planName,
-  planColor,
-  isLoading,
-  onConfirm,
-  onClose,
-}: {
-  visible: boolean;
-  planName: string;
-  planColor: string;
-  isLoading: boolean;
-  onConfirm: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <Pressable style={guideS.overlay} onPress={onClose}>
-        <Pressable style={guideS.sheet} onPress={() => {}}>
-
-          {/* Handle */}
-          <View style={guideS.handle} />
-
-          {/* Header */}
-          <View style={[guideS.headerIcon, { backgroundColor: planColor + "20" }]}>
-            <Ionicons name="rocket-outline" size={28} color={planColor} />
-          </View>
-          <Text style={guideS.title}>How to complete your payment</Text>
-          <Text style={guideS.subtitle}>
-            Upgrading to <Text style={[guideS.planBold, { color: planColor }]}>{planName}</Text>
-            {" "}— follow these steps after tapping Continue:
-          </Text>
-
-          {/* Steps */}
-          <View style={guideS.stepsWrap}>
-            {GUIDE_STEPS.map((step, i) => (
-              <View key={i} style={guideS.stepRow}>
-                {/* Number + connector */}
-                <View style={guideS.stepLeft}>
-                  <View style={[guideS.stepNum, { backgroundColor: step.bg, borderColor: step.color + "40" }]}>
-                    <Text style={[guideS.stepNumText, { color: step.color }]}>{i + 1}</Text>
-                  </View>
-                  {i < GUIDE_STEPS.length - 1 && <View style={guideS.connector} />}
-                </View>
-
-                {/* Content */}
-                <View style={guideS.stepContent}>
-                  <View style={[guideS.stepIconWrap, { backgroundColor: step.bg }]}>
-                    <Ionicons name={step.icon as any} size={16} color={step.color} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={guideS.stepTitle}>{step.title}</Text>
-                    <Text style={guideS.stepBody}>{step.body}</Text>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-
-          {/* Important note */}
-          <View style={guideS.noteBanner}>
-            <Ionicons name="information-circle-outline" size={16} color="#D97706" />
-            <Text style={guideS.noteText}>
-              The "Confirm Payment" button appears{" "}
-              <Text style={guideS.noteBold}>at the top of this screen</Text>
-              {" "}when you return from Paystack.
-            </Text>
-          </View>
-
-          {/* Actions */}
-          <PressScale
-            onPress={onConfirm}
-            disabled={isLoading}
-            style={{ width: "100%", borderRadius: D.radius.xl, marginTop: 4 }}
-          >
-            <LinearGradient
-              colors={isLoading ? [colors.textMuted, colors.textMuted] : [planColor, planColor + "CC"]}
-              style={guideS.confirmBtn}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="arrow-forward-circle-outline" size={20} color="#fff" />
-                  <Text style={guideS.confirmBtnText}>Continue to Payment</Text>
-                </>
-              )}
-            </LinearGradient>
-          </PressScale>
-
-          <TouchableOpacity style={guideS.cancelBtn} onPress={onClose} disabled={isLoading}>
-            <Text style={guideS.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-const guideS = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingBottom: 36,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 16,
-  },
-  handle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: colors.border,
-    marginTop: 12, marginBottom: 20,
-  },
-  headerIcon: {
-    width: 60, height: 60, borderRadius: 20,
-    alignItems: "center", justifyContent: "center",
-    marginBottom: 14,
-  },
-  title: {
-    fontSize: 19, fontWeight: "800",
-    color: colors.textPrimary,
-    letterSpacing: -0.3,
-    textAlign: "center",
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 13, color: colors.textSecondary,
-    textAlign: "center", lineHeight: 20,
-    marginBottom: 20,
-  },
-  planBold: { fontWeight: "800" },
-
-  stepsWrap: { width: "100%", marginBottom: 16 },
-  stepRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 0,
-  },
-  stepLeft: {
-    alignItems: "center",
-    width: 28,
-  },
-  stepNum: {
-    width: 28, height: 28, borderRadius: 14,
-    alignItems: "center", justifyContent: "center",
-    borderWidth: 1.5,
-    flexShrink: 0,
-  },
-  stepNumText: { fontSize: 12, fontWeight: "800" },
-  connector: {
-    width: 2, flex: 1,
-    backgroundColor: colors.border,
-    marginVertical: 3,
-    minHeight: 14,
-  },
-  stepContent: {
-    flex: 1,
-    flexDirection: "row",
-    gap: 10,
-    paddingBottom: 16,
-    alignItems: "flex-start",
-  },
-  stepIconWrap: {
-    width: 32, height: 32, borderRadius: 10,
-    alignItems: "center", justifyContent: "center",
-    flexShrink: 0,
-    marginTop: 1,
-  },
-  stepTitle: {
-    fontSize: 13, fontWeight: "700",
-    color: colors.textPrimary,
-    marginBottom: 3,
-  },
-  stepBody: {
-    fontSize: 12, color: colors.textSecondary,
-    lineHeight: 18,
-  },
-
-  noteBanner: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: "#FEF3C7",
-    borderRadius: 12,
-    padding: 12,
-    width: "100%",
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-  },
-  noteText: {
-    flex: 1, fontSize: 12,
-    color: "#92400E",
-    lineHeight: 18,
-  },
-  noteBold: { fontWeight: "800" },
-
-  confirmBtn: {
-    flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 8,
-    paddingVertical: 15,
-    borderRadius: D.radius.xl,
-    width: "100%",
-  },
-  confirmBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
-
-  cancelBtn: { paddingVertical: 12, marginTop: 2 },
-  cancelText: { fontSize: 14, color: colors.textMuted, fontWeight: "500" },
 });
 
 // ─── Trust Badges ─────────────────────────────────────────────────────────────
@@ -1084,14 +429,12 @@ function TrustBadges() {
 const trustS = StyleSheet.create({
   row: {
     flexDirection: "row", justifyContent: "center",
-    gap: 0, marginBottom: 20,
+    marginBottom: 20,
     backgroundColor: colors.surface,
     borderRadius: D.radius.lg, padding: 12,
     ...D.shadow.soft,
   },
-  item: {
-    flex: 1, alignItems: "center", gap: 4,
-  },
+  item: { flex: 1, alignItems: "center", gap: 4 },
   label: { fontSize: 10, color: colors.textMuted, fontWeight: "600", textAlign: "center" },
 });
 
@@ -1140,37 +483,24 @@ export default function SubscribeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const {
-    status, isLoading, isVerifying, pendingReference,
+    status, isLoading, isVerifying,
     loadStatus, initializeCheckout, verifyPayment, cancelSubscription,
   } = useSubscriptionStore();
 
   const [checkingOut, setCheckingOut] = useState<PlanId | null>(null);
-  const [guideVisible, setGuideVisible] = useState(false);
-  const [guidePlanId, setGuidePlanId] = useState<PlanId | null>(null);
-  const appState = useRef(AppState.currentState);
+
+  // WebView state
+  const [webviewVisible,     setWebviewVisible]     = useState(false);
+  const [webviewPaymentLink, setWebviewPaymentLink] = useState("");
+  const [webviewTxRef,       setWebviewTxRef]       = useState("");
 
   useEffect(() => { loadStatus(); }, []);
 
-  // When the user returns from the browser (having completed payment), remind them
-  // to tap "Confirm Payment". The deep link handles this automatically in production,
-  // but this is a fallback for cases where the deep link doesn't fire (browser blocks it).
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (nextState) => {
-      if (appState.current.match(/inactive|background/) && nextState === "active") {
-        if (pendingReference) {
-          // App came to foreground with a pending payment reference — refresh status
-          loadStatus();
-        }
-      }
-      appState.current = nextState;
-    });
-    return () => sub.remove();
-  }, [pendingReference]);
-
   const currentPlan = user?.subscription?.plan ?? "free";
 
-  const handleUpgrade = (planId: PlanId) => {
+  const handleUpgrade = async (planId: PlanId) => {
     if (planId === currentPlan) return;
+
     if (planId === "free") {
       Alert.alert(
         "Downgrade to Starter",
@@ -1182,19 +512,13 @@ export default function SubscribeScreen() {
       );
       return;
     }
-    // Show the guidance modal before opening Paystack
-    setGuidePlanId(planId);
-    setGuideVisible(true);
-  };
 
-  const doCheckout = async () => {
-    if (!guidePlanId) return;
-    const planId = guidePlanId;
-    setGuideVisible(false);
     setCheckingOut(planId);
     try {
-      const url = await initializeCheckout(planId);
-      await Linking.openURL(url);
+      const { paymentLink, txRef } = await initializeCheckout(planId);
+      setWebviewPaymentLink(paymentLink);
+      setWebviewTxRef(txRef);
+      setWebviewVisible(true);
     } catch {
       Alert.alert("Error", "Could not start checkout. Please try again.");
     } finally {
@@ -1202,18 +526,17 @@ export default function SubscribeScreen() {
     }
   };
 
-  const handleVerify = async () => {
-    const ref = pendingReference;
-    if (!ref) {
-      Alert.alert("", "No pending payment found. Complete checkout first.");
-      return;
-    }
+  const handleWebViewSuccess = async (txRef: string) => {
+    setWebviewVisible(false);
     try {
-      await verifyPayment(ref);
+      await verifyPayment(txRef);
       Alert.alert("🎉 Payment Confirmed!", "Your plan has been upgraded successfully.");
       router.back();
     } catch {
-      Alert.alert("Verification Failed", "We could not confirm your payment. Try again or contact support.");
+      Alert.alert(
+        "Verification Failed",
+        "We could not confirm your payment. Please try tapping 'I've Completed Payment' again or contact support."
+      );
     }
   };
 
@@ -1247,22 +570,14 @@ export default function SubscribeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={mainS.scroll}
       >
-        {/* Hero */}
         <HeroHeader onBack={() => router.back()} currentPlan={currentPlan} />
 
         <View style={mainS.body}>
-          {/* Confirm payment — shown at TOP so user sees it immediately on return */}
-          {pendingReference && (
-            <VerifyPaymentCard isVerifying={isVerifying} onVerify={handleVerify} />
-          )}
-
-          {/* Trust badges */}
           <TrustBadges />
 
-          {/* Plan cards */}
           {PLANS.map((plan) => {
             const isCurrent = plan.id === currentPlan;
-            const isActive = status?.status === "active" && isCurrent;
+            const isActive  = status?.status === "active" && isCurrent;
 
             return (
               <PlanCard
@@ -1276,7 +591,6 @@ export default function SubscribeScreen() {
             );
           })}
 
-          {/* Cancel link */}
           {currentPlan !== "free" && status?.status === "active" && (
             <TouchableOpacity style={mainS.cancelBtn} onPress={handleCancel} activeOpacity={0.7}>
               <Ionicons name="close-circle-outline" size={16} color={colors.danger} />
@@ -1284,9 +598,8 @@ export default function SubscribeScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Legal note */}
           <Text style={mainS.legal}>
-            Payments are processed securely via Paystack.{"\n"}
+            Payments are processed securely via Flutterwave.{"\n"}
             Subscriptions renew monthly. Cancel anytime.
           </Text>
 
@@ -1294,15 +607,22 @@ export default function SubscribeScreen() {
         </View>
       </ScrollView>
 
-      {/* Pre-payment guidance modal */}
-      <PaymentGuideModal
-        visible={guideVisible}
-        planName={PLANS.find((p) => p.id === guidePlanId)?.name ?? ""}
-        planColor={PLANS.find((p) => p.id === guidePlanId)?.color ?? colors.primary}
-        isLoading={checkingOut !== null}
-        onConfirm={doCheckout}
-        onClose={() => setGuideVisible(false)}
+      {/* Flutterwave in-app payment WebView */}
+      <FlutterwaveWebView
+        visible={webviewVisible}
+        paymentLink={webviewPaymentLink}
+        txRef={webviewTxRef}
+        onSuccess={handleWebViewSuccess}
+        onCancel={() => setWebviewVisible(false)}
       />
+
+      {/* Full-screen verifying overlay */}
+      {isVerifying && (
+        <View style={mainS.verifyingOverlay}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={mainS.verifyingText}>Confirming your payment...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1310,6 +630,7 @@ export default function SubscribeScreen() {
 const mainS = StyleSheet.create({
   scroll: { flexGrow: 1 },
   body: { paddingHorizontal: 16, paddingTop: 16 },
+
   cancelBtn: {
     flexDirection: "row", alignItems: "center",
     justifyContent: "center", gap: 8,
@@ -1320,12 +641,24 @@ const mainS = StyleSheet.create({
     backgroundColor: colors.danger + "08",
     marginBottom: 16,
   },
-  cancelBtnText: {
-    color: colors.danger, fontSize: 14, fontWeight: "700",
-  },
+  cancelBtnText: { color: colors.danger, fontSize: 14, fontWeight: "700" },
+
   legal: {
     fontSize: 11, color: colors.textMuted,
     textAlign: "center", lineHeight: 17,
     marginBottom: 8,
   },
-})
+
+  verifyingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+  },
+  verifyingText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+});

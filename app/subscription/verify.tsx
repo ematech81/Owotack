@@ -10,11 +10,11 @@ import { colors } from "../../src/constants/colors";
 type VerifyStatus = "verifying" | "success" | "error";
 
 export default function SubscriptionVerifyScreen() {
-  // Paystack appends ?reference=xxx&trxref=xxx to the callback URL
-  const { reference, trxref } = useLocalSearchParams<{ reference?: string; trxref?: string }>();
-  const ref = (reference || trxref) as string | undefined;
+  // Flutterwave appends ?status=...&tx_ref=...&transaction_id=... to the callback URL
+  const { tx_ref, status: flwStatus } = useLocalSearchParams<{ tx_ref?: string; status?: string }>();
+  const ref = tx_ref as string | undefined;
 
-  const { verifyPayment, setPendingReference } = useSubscriptionStore();
+  const { verifyPayment } = useSubscriptionStore();
   const [status, setStatus] = useState<VerifyStatus>("verifying");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -29,25 +29,21 @@ export default function SubscriptionVerifyScreen() {
   useEffect(() => {
     if (!ref) {
       setStatus("error");
-      setErrorMsg("No payment reference found. Please return to the app and tap 'Confirm Payment'.");
+      setErrorMsg("No payment reference found. Please return to the app and try again.");
       return;
     }
-
-    // Store so the subscribe screen shows the verify card as fallback
-    setPendingReference(ref);
 
     const doVerify = async () => {
       try {
         await verifyPayment(ref);
         setStatus("success");
-        // Give user a moment to see the success state, then go home
-        setTimeout(() => router.replace("/(tabs)/"), 2200);
+        setTimeout(() => router.replace("/(tabs)" as any), 2200);
       } catch (err: any) {
         setStatus("error");
         setErrorMsg(
           err?.message?.includes("not successful")
             ? "Payment was not completed. Please try again."
-            : "We couldn't confirm your payment. Go back and tap 'Confirm Payment' on the subscription screen."
+            : "We couldn't confirm your payment. Go back to the subscription screen and try again."
         );
       }
     };

@@ -15,8 +15,8 @@ export interface SubscriptionStatus {
 }
 
 export interface CheckoutResult {
-  authorizationUrl: string;
-  reference: string;
+  paymentLink: string;
+  txRef: string;
 }
 
 export const subscriptionService = {
@@ -30,9 +30,9 @@ export const subscriptionService = {
     return res.data.data;
   },
 
-  async verify(reference: string): Promise<{ planId: string; status: string }> {
+  async verify(txRef: string): Promise<{ planId: string; status: string }> {
     const res = await api.get<ApiResponse<{ planId: string; status: string }>>(
-      `/subscription/verify/${reference}`
+      `/subscription/verify/${encodeURIComponent(txRef)}`
     );
     return res.data.data;
   },

@@ -832,14 +832,21 @@ function FilterPills({ active, onChange, colors }: FilterPillsProps) {
   );
 }
 
+
+
 const pillStyles = StyleSheet.create({
-  scroll: { marginBottom: 8, },
+  scroll: { 
+    marginTop: 4,      // Adds space ABOVE the payment pills (away from search)
+    marginBottom: 16,   // Adds space BELOW the payment pills (away from list)
+  },
   container: {
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    // paddingVertical: 8, // Reduced from 20 to 8 to stop it from "blocking" the list
     gap: 8,
     flexDirection: "row",
     alignItems: "center",
+    paddingBottom: 8,
+    paddingTop: 12, // Added padding at the top to create space between search and pills
   },
   pill: {
     flexDirection: "row",
@@ -850,8 +857,14 @@ const pillStyles = StyleSheet.create({
     borderRadius: DESIGN.radius.full,
     borderWidth: 1.5,
     height: 40,
+    // Add a very subtle shadow to differentiate it from the background
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  label: { fontSize: 13, fontWeight: "600", paddingBottom: 2 },
+  label: { fontSize: 13, fontWeight: "600" },
 });
 
 // ─── Date Range Filter Bar ─────────────────────────────────────────────────────
@@ -935,7 +948,12 @@ function FilterBar({ preset, onPreset, onOpenCalendar, customerQuery, onCustomer
 }
 
 const fbStyles = StyleSheet.create({
-  wrapper: { paddingHorizontal: 16, paddingBottom: 8, gap: 8 },
+
+  wrapper: { 
+    // paddingHorizontal: 16, 
+    paddingBottom: 12, // Increased from 8 to 12
+    gap: 10            // Increased gap between date presets and search input
+  },
   presetsRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   presetsScroll: { flexDirection: "row", gap: 6, paddingRight: 8 },
   presetBtn: {
@@ -955,7 +973,7 @@ const fbStyles = StyleSheet.create({
   searchRow: {
     flexDirection: "row", alignItems: "center", gap: 8,
     borderWidth: 1.5, borderRadius: DESIGN.radius.lg,
-    paddingHorizontal: 12, height: 42,
+    paddingHorizontal: 12, height: 48,
   },
   searchInput: { flex: 1, fontSize: 13, fontWeight: "500" },
 });
@@ -1141,7 +1159,19 @@ export default function LedgerScreen() {
         />
       )}
 
-      {/* ── Filter Bar ───────────────────────────────────────────────────────── */}
+
+<FlatList
+  data={filteredEntries}
+  keyExtractor={(item) => item.key}
+  renderItem={({ item }) => <TransactionRow item={item} colors={colors} />}
+  contentContainerStyle={screenStyles.list}
+  showsVerticalScrollIndicator={false}
+  refreshControl={
+    <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />
+  }
+  ListHeaderComponent={
+    <>
+      {/* ── Filter Bar ─────────────────────────────────────────────────── */}
       <FilterBar
         preset={datePreset}
         onPreset={(p) => { setDatePreset(p); if (p !== "custom") setCustomDate(null); }}
@@ -1152,40 +1182,31 @@ export default function LedgerScreen() {
         colors={colors}
       />
 
-      {/* ── Payment Filter Pills ──────────────────────────────────────────────── */}
+      {/* ── Payment Filter Pills ───────────────────────────────────────── */}
       <FilterPills active={activeFilter} onChange={setActiveFilter} colors={colors} />
-
-      {/* ── Transaction List ──────────────────────────────────────────────────── */}
-      <FlatList
-        data={filteredEntries}
-        keyExtractor={(item) => item.key}
-        renderItem={({ item }) => <TransactionRow item={item} colors={colors} />}
-        contentContainerStyle={screenStyles.list}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />
-        }
-        ListEmptyComponent={
-          !loading ? (
-            <View style={screenStyles.empty}>
-              <LinearGradient
-                colors={[colors.primary + "15", colors.primary + "05"]}
-                style={screenStyles.emptyIconGradient}
-              >
-                <Ionicons name="receipt-outline" size={40} color={colors.primary} />
-              </LinearGradient>
-              <Text style={[screenStyles.emptyTitle, { color: colors.textPrimary }]}>
-                No Transactions
-              </Text>
-              <Text style={[screenStyles.emptySub, { color: colors.textMuted }]}>
-                {datePreset !== "all"
-                  ? `Nothing recorded for this period.`
-                  : "Your ledger is empty. Transactions will appear here."}
-              </Text>
-            </View>
-          ) : null
-        }
-      />
+    </>
+  }
+  ListEmptyComponent={
+    !loading ? (
+      <View style={screenStyles.empty}>
+        <LinearGradient
+          colors={[colors.primary + "15", colors.primary + "05"]}
+          style={screenStyles.emptyIconGradient}
+        >
+          <Ionicons name="receipt-outline" size={40} color={colors.primary} />
+        </LinearGradient>
+        <Text style={[screenStyles.emptyTitle, { color: colors.textPrimary }]}>
+          No Transactions
+        </Text>
+        <Text style={[screenStyles.emptySub, { color: colors.textMuted }]}>
+          {datePreset !== "all"
+            ? `Nothing recorded for this period.`
+            : "Your ledger is empty. Transactions will appear here."}
+        </Text>
+      </View>
+    ) : null
+  }
+/>
 
       <CalendarModal
         visible={calVisible}
@@ -1219,8 +1240,12 @@ const screenStyles = StyleSheet.create({
   headerMid: { alignItems: "center", flex: 1, paddingHorizontal: 8 },
   heroTitle: { fontSize: 18, fontWeight: "800", letterSpacing: -0.3 },
   heroSub: { fontSize: 12, marginTop: 2, fontWeight: "500" },
-  list: { paddingHorizontal: 16, paddingBottom: 48 },
-  empty: { alignItems: "center", paddingTop: 64, gap: 12 },
+  list: { 
+    paddingHorizontal: 16, 
+    paddingTop: 12,       // Add padding here to ensure the first card has space
+    paddingBottom: 48 
+  },
+  empty: { alignItems: "center", paddingTop: 32, gap: 12 },
   emptyIconGradient: {
     width: 90, height: 90,
     borderRadius: 45,

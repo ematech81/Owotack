@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { subscriptionService, SubscriptionStatus } from "../services/subscriptionService";
+import { subscriptionService, SubscriptionStatus, CheckoutResult } from "../services/subscriptionService";
 import { PlanId } from "../config/plans";
 import { useAuthStore } from "./authStore";
 
@@ -7,20 +7,17 @@ interface SubscriptionState {
   status: SubscriptionStatus | null;
   isLoading: boolean;
   isVerifying: boolean;
-  pendingReference: string | null;
 
   loadStatus: () => Promise<void>;
-  initializeCheckout: (planId: PlanId) => Promise<string>;
-  verifyPayment: (reference: string) => Promise<void>;
+  initializeCheckout: (planId: PlanId) => Promise<CheckoutResult>;
+  verifyPayment: (txRef: string) => Promise<void>;
   cancelSubscription: () => Promise<void>;
-  setPendingReference: (ref: string | null) => void;
 }
 
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   status: null,
   isLoading: false,
   isVerifying: false,
-  pendingReference: null,
 
   loadStatus: async () => {
     set({ isLoading: true });
@@ -32,24 +29,23 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     }
   },
 
-  initializeCheckout: async (planId: PlanId): Promise<string> => {
-    const result = await subscriptionService.initialize(planId);
-    set({ pendingReference: result.reference });
-    return result.authorizationUrl;
+  initializeCheckout: async (planId: PlanId): Promise<CheckoutResult> => {
+    return subscriptionService.initialize(planId);
   },
 
-  verifyPayment: async (reference: string) => {
+  verifyPayment: async (txRef: string) => {
     set({ isVerifying: true });
     try {
-      await subscriptionService.verify(reference);
-      // Refresh subscription status and user profile
+      await subscriptionService.verify(txRef);
+      // Refresh subscription status and sync it into the auth store
       await get().loadStatus();
-      // Also refresh the cached user so plan shows correctly everywhere
       const { setUser, user } = useAuthStore.getState();
       if (user && get().status) {
-        setUser({ ...user, subscription: { plan: get().status!.plan, status: get().status!.status } });
+        setUser({
+          ...user,
+          subscription: { plan: get().status!.plan, status: get().status!.status },
+        });
       }
-      set({ pendingReference: null });
     } finally {
       set({ isVerifying: false });
     }
@@ -59,6 +55,4 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     await subscriptionService.cancel();
     await get().loadStatus();
   },
-
-  setPendingReference: (ref) => set({ pendingReference: ref }),
 }));
