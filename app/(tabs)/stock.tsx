@@ -198,8 +198,8 @@ function DatePickerModal({ visible, value, onConfirm, onClose, colors }: {
                 key={i}
                 style={[
                   dpS.cell,
-                  d && isSel(d) && { backgroundColor: colors.primary, borderRadius: D.radius.full },
-                  d && isTod(d) && !isSel(d) && {
+                  !!d && isSel(d) && { backgroundColor: colors.primary, borderRadius: D.radius.full },
+                  !!d && isTod(d) && !isSel(d) && {
                     borderWidth: 1.5, borderColor: colors.primary, borderRadius: D.radius.full,
                   },
                 ]}

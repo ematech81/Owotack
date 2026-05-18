@@ -51,4 +51,4 @@ export const darkColors = {
 // Legacy export so existing screens importing `colors` still work (light theme)
 export const colors = lightColors;
 
-export type AppColors = typeof lightColors;
+export type AppColors = { [K in keyof typeof lightColors]: string };

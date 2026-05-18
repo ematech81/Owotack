@@ -12,7 +12,7 @@ import { useAuthStore } from "../src/store/authStore";
 import { PLANS, PlanConfig, PlanId, formatLimit } from "../src/config/plans";
 import { colors } from "../src/constants/colors";
 import { formatNaira } from "../src/utils/formatters";
-import { FlutterwaveWebView } from "../src/components/common/FlutterwaveWebView";
+import { PaymentWebView } from "../src/components/common/PaymentWebView";
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 
@@ -607,8 +607,8 @@ export default function SubscribeScreen() {
         </View>
       </ScrollView>
 
-      {/* Flutterwave in-app payment WebView */}
-      <FlutterwaveWebView
+      {/* Korapay in-app payment WebView */}
+      <PaymentWebView
         visible={webviewVisible}
         paymentLink={webviewPaymentLink}
         txRef={webviewTxRef}

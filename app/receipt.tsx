@@ -925,7 +925,7 @@ export default function ReceiptScreen() {
       >
         <View style={screenS.headerRow}>
           <TouchableOpacity
-            onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/")}
+            onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/" as any)}
             style={[screenS.headerBtn, { backgroundColor: colors.surface }, D.shadow.soft]}
           >
             <Ionicons name="arrow-back" size={18} color={colors.textPrimary} />

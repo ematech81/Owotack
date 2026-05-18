@@ -456,7 +456,7 @@ function DatePickerModal({ visible, value, onConfirm, onClose, colors }: {
             {cells.map((d, i) => (
               <TouchableOpacity
                 key={i}
-                style={[dpStyles.cell, d && isSel(d) && { backgroundColor: colors.primary, borderRadius: 20 }]}
+                style={[dpStyles.cell, !!d && isSel(d) && { backgroundColor: colors.primary, borderRadius: 20 }]}
                 onPress={() => handleDay(d)}
                 disabled={!d}
               >
