@@ -33,7 +33,7 @@ export default function PhoneScreen() {
     setLoading(true);
     try {
       const result = await authService.sendOtp(normalized);
-      if (result.devOtp) console.log(`[DEV OTP for ${normalized}]: ${result.devOtp}`);
+      if (__DEV__ && result.devOtp) console.log(`[DEV OTP for ${normalized}]: ${result.devOtp}`);
       router.push({
         pathname: "/(auth)/otp",
         // carry ref forward so it reaches profile-setup

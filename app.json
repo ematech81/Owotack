@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.owotrack.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundImage": "./assets/images/adaptive-icon-background.png",
@@ -21,8 +21,6 @@
       },
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.VIBRATE",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
@@ -72,6 +70,12 @@
         }
       ]
     ],
+    "updates": {
+      "url": "https://u.expo.dev/362da4b1-8941-47a5-9f01-5a7c9601415e"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "experiments": {
       "typedRoutes": true
     },
