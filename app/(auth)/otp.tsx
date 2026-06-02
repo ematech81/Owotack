@@ -42,7 +42,7 @@ export default function OTPScreen() {
 
   const handleChange = (value: string, index: number) => {
     const newOtp = [...otp];
-    newOtp[index] = value.slice(-1);
+    newOtp[index] = value.slice(-1).toUpperCase();
     setOtp(newOtp);
     if (value && index < OTP_LENGTH - 1) inputRefs.current[index + 1]?.focus();
   };
@@ -56,7 +56,7 @@ export default function OTPScreen() {
   const handleVerify = async () => {
     const code = otp.join("");
     if (code.length < OTP_LENGTH) {
-      Alert.alert("Error", "Enter the complete 6-digit OTP");
+      Alert.alert("Error", "Enter the complete 6-character access key");
       return;
     }
 
@@ -112,6 +112,8 @@ export default function OTPScreen() {
           </Text>
         </View>
 
+        <Text style={styles.delayNote}>Your access key may take up to 2 minutes to arrive</Text>
+
         <View style={styles.otpRow}>
           {otp.map((digit, index) => (
             <TextInput
@@ -121,7 +123,8 @@ export default function OTPScreen() {
               value={digit}
               onChangeText={(val) => handleChange(val, index)}
               onKeyPress={({ nativeEvent: { key } }) => handleKeyPress(key, index)}
-              keyboardType="number-pad"
+              keyboardType="default"
+              autoCapitalize="characters"
               maxLength={1}
               selectTextOnFocus
             />
@@ -151,6 +154,7 @@ const styles = StyleSheet.create({
   header: { marginBottom: 48 },
   title: { fontSize: 28, fontWeight: "700", color: colors.textPrimary, marginBottom: 8 },
   subtitle: { fontSize: 16, color: colors.textSecondary, lineHeight: 24 },
+  delayNote: { fontSize: 13, color: colors.danger, textAlign: "center", marginBottom: 16, lineHeight: 18 },
   otpRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 40 },
   otpBox: {
     width: 48,

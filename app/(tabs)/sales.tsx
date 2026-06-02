@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
   TextInput, ScrollView, Alert, KeyboardAvoidingView,
-  Platform, Animated, Dimensions,
+  Platform, Animated, Dimensions, Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, router } from "expo-router";
@@ -1116,6 +1116,7 @@ export default function AddSaleScreen() {
   const { items: stockItems } = useStockStore();
 
   const [mode, setMode] = useState<InputMode>("voice");
+  const [showVoiceTipModal, setShowVoiceTipModal] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [parsedResult, setParsedResult] = useState<ParsedResult | null>(null);
@@ -1414,8 +1415,11 @@ export default function AddSaleScreen() {
                 setUpgradeVisible(true);
                 return;
               }
+              if (m === "voice") {
+                setShowVoiceTipModal(true);
+                return;
+              }
               setMode(m);
-              if (m === "voice") { setParsedResult(null); setTranscript(""); }
             }}
           />
         </LinearGradient>
@@ -1589,6 +1593,68 @@ export default function AddSaleScreen() {
         used={upgradeUsed}
         limit={upgradeLimit}
       />
+
+      {/* ── Voice Input Tip Modal ──────────────────────────────────────────── */}
+      <Modal
+        visible={showVoiceTipModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowVoiceTipModal(false)}
+      >
+        <View style={voiceTipS.overlay}>
+          <View style={voiceTipS.card}>
+            <View style={voiceTipS.iconRow}>
+              <View style={voiceTipS.iconWrap}>
+                <Ionicons name="mic" size={28} color={colors.primary} />
+              </View>
+            </View>
+
+            <Text style={voiceTipS.title}>Voice Input</Text>
+            <Text style={voiceTipS.intro}>
+              Voice input is great for quick entries. However, we recommend using{" "}
+              <Text style={voiceTipS.bold}>Text Input</Text> for detailed or complex records.
+            </Text>
+
+            <View style={voiceTipS.divider} />
+
+            <Text style={voiceTipS.tipsTitle}>Tips for best results</Text>
+            {[
+              { icon: "volume-high-outline",   tip: 'Speak clearly, e.g. "I sell 5 bags of rice at 45,000 naira"' },
+              { icon: "mic-off-outline",        tip: "Be in a quiet environment — avoid background noise" },
+              { icon: "language-outline",       tip: "State product name, quantity, and price in one sentence" },
+              { icon: "wifi-outline",           tip: "Ensure you have a stable internet connection" },
+            ].map(({ icon, tip }) => (
+              <View key={tip} style={voiceTipS.tipRow}>
+                <Ionicons name={icon as any} size={15} color={colors.primary} style={voiceTipS.tipIcon} />
+                <Text style={voiceTipS.tipText}>{tip}</Text>
+              </View>
+            ))}
+
+            <View style={voiceTipS.btnRow}>
+              <TouchableOpacity
+                style={voiceTipS.cancelBtn}
+                onPress={() => setShowVoiceTipModal(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={voiceTipS.cancelText}>Use Text Input</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={voiceTipS.proceedBtn}
+                onPress={() => {
+                  setShowVoiceTipModal(false);
+                  setMode("voice");
+                  setParsedResult(null);
+                  setTranscript("");
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="mic" size={15} color="#fff" />
+                <Text style={voiceTipS.proceedText}>Use Voice</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1631,4 +1697,55 @@ const screenS = StyleSheet.create({
     borderWidth: 1.5, marginBottom: 10,
   },
   addItemText: { fontSize: 14, fontWeight: "700" },
+});
+
+const voiceTipS = StyleSheet.create({
+  overlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center", alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 20, padding: 24, width: "100%",
+  },
+  iconRow: { alignItems: "center", marginBottom: 12 },
+  iconWrap: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: colors.primary + "15",
+    alignItems: "center", justifyContent: "center",
+  },
+  title: {
+    fontSize: 18, fontWeight: "800",
+    color: colors.textPrimary, textAlign: "center",
+    marginBottom: 8,
+  },
+  intro: {
+    fontSize: 13, color: colors.textSecondary,
+    textAlign: "center", lineHeight: 20, marginBottom: 16,
+  },
+  bold: { fontWeight: "700", color: colors.textPrimary },
+  divider: { height: 1, backgroundColor: colors.border, marginBottom: 14 },
+  tipsTitle: {
+    fontSize: 12, fontWeight: "700",
+    color: colors.textMuted, letterSpacing: 0.5,
+    textTransform: "uppercase", marginBottom: 10,
+  },
+  tipRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 8 },
+  tipIcon: { marginTop: 1 },
+  tipText: { flex: 1, fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
+  btnRow: { flexDirection: "row", gap: 10, marginTop: 20 },
+  cancelBtn: {
+    flex: 1, height: 46, borderRadius: 12,
+    borderWidth: 1.5, borderColor: colors.border,
+    alignItems: "center", justifyContent: "center",
+  },
+  cancelText: { fontSize: 13, fontWeight: "700", color: colors.textSecondary },
+  proceedBtn: {
+    flex: 1, height: 46, borderRadius: 12,
+    backgroundColor: colors.primary,
+    flexDirection: "row", alignItems: "center",
+    justifyContent: "center", gap: 6,
+  },
+  proceedText: { fontSize: 13, fontWeight: "700", color: "#fff" },
 });
