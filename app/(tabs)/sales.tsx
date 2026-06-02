@@ -1115,7 +1115,7 @@ export default function AddSaleScreen() {
   const { addSale, parseText } = useSalesStore();
   const { items: stockItems } = useStockStore();
 
-  const [mode, setMode] = useState<InputMode>("voice");
+  const [mode, setMode] = useState<InputMode>("manual");
   const [showVoiceTipModal, setShowVoiceTipModal] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);

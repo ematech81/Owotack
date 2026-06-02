@@ -47,7 +47,7 @@ export default function AddExpenseScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [parsedResult, setParsedResult] = useState<ParsedExpense | null>(null);
   const [transcript, setTranscript] = useState("");
-  const [mode, setMode] = useState<"voice" | "manual">("voice");
+  const [mode, setMode] = useState<"voice" | "manual">("manual");
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([emptyItem()]);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [upgradeVisible, setUpgradeVisible] = useState(false);
