@@ -17,6 +17,8 @@ import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "../../src/store/authStore";
+import { getPlanById } from "../../src/config/plans";
+import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";
 import { useSalesStore } from "../../src/store/salesStore";
 import { useExpenseStore } from "../../src/store/expenseStore";
 import { salesDb } from "../../src/database/salesDb";
@@ -112,6 +114,15 @@ const statPillStyles = StyleSheet.create({
   fill: { height: 3, borderRadius: 2 },
 });
 
+// ─── Revenue period access — mirrors the reportsAccess plan limit ─────────────
+
+function canAccessPeriod(period: Period, reportsAccess: "today" | "weekly" | "full"): boolean {
+  if (period === "today") return true;
+  if (period === "week") return reportsAccess === "weekly" || reportsAccess === "full";
+  if (period === "month") return reportsAccess === "full";
+  return false;
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
@@ -124,10 +135,14 @@ export default function DashboardScreen() {
   } = useSalesStore();
   const { todayExpenses, loadToday: loadExpenses } = useExpenseStore();
 
+  const planId = user?.subscription?.plan ?? "free";
+  const reportsAccess = getPlanById(planId).limits.reportsAccess;
+
   const [period, setPeriod] = useState<Period>("today");
   const [periodSales, setPeriodSales] = useState<Sale[]>([]);
   const [periodExpenses, setPeriodExpenses] = useState<Expense[]>([]);
   const [periodLoading, setPeriodLoading] = useState(false);
+  const [upgradeVisible, setUpgradeVisible] = useState(false);
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [aiTip, setAiTip] = useState<string | null>(null);
   const [aiTipLoading, setAiTipLoading] = useState(false);
@@ -271,7 +286,13 @@ export default function DashboardScreen() {
     loadPeriod(period);
   }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePeriod = (p: Period) => setPeriod(p);
+  const handlePeriod = (p: Period) => {
+    if (!canAccessPeriod(p, reportsAccess)) {
+      setUpgradeVisible(true);
+      return;
+    }
+    setPeriod(p);
+  };
 
   const initials = (user?.name ?? "T")
     .split(" ")
@@ -383,26 +404,33 @@ export default function DashboardScreen() {
           <View style={styles.periodRow}>
             <Text style={styles.heroCardLabel}>{CARD_LABEL[period]}</Text>
             <View style={styles.periodTabs}>
-              {PERIOD_TABS.map((tab) => (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={[
-                    styles.periodTab,
-                    period === tab.key && styles.periodTabActive,
-                  ]}
-                  onPress={() => handlePeriod(tab.key)}
-                  activeOpacity={0.8}
-                >
-                  <Text
+              {PERIOD_TABS.map((tab) => {
+                const locked = !canAccessPeriod(tab.key, reportsAccess);
+                const active = period === tab.key;
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
                     style={[
-                      styles.periodTabText,
-                      period === tab.key && styles.periodTabTextActive,
+                      styles.periodTab,
+                      active && styles.periodTabActive,
                     ]}
+                    onPress={() => handlePeriod(tab.key)}
+                    activeOpacity={0.8}
                   >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    {locked && (
+                      <Ionicons name="lock-closed" size={9} color="rgba(255,255,255,0.6)" style={{ marginRight: 3 }} />
+                    )}
+                    <Text
+                      style={[
+                        styles.periodTabText,
+                        active && styles.periodTabTextActive,
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
@@ -653,6 +681,12 @@ export default function DashboardScreen() {
       </ScrollView>
 
       <OnboardingGuideModal visible={guideVisible} onClose={handleCloseGuide} />
+
+      <UpgradePromptModal
+        visible={upgradeVisible}
+        onClose={() => setUpgradeVisible(false)}
+        feature="reports"
+      />
 
       {/* ── Notification Panel ── */}
       <Modal
