@@ -272,6 +272,7 @@ export default function ProfileScreen() {
   const [editVisible, setEditVisible] = useState(false);
   const [pinVisible, setPinVisible] = useState(false);
   const [langVisible, setLangVisible] = useState(false);
+  const [supportVisible, setSupportVisible] = useState(false);
 
   // ── Edit profile form
   const [editForm, setEditForm] = useState({
@@ -882,11 +883,11 @@ export default function ProfileScreen() {
           />
           <RowDivider colors={colors} />
           <SettingsRow
-            icon="mail-outline"
+            icon="headset-outline"
             label="Contact Support"
-            subtitle="support@owotrack.com"
+            subtitle="Chat, email or WhatsApp"
             showArrow
-            onPress={() => Linking.openURL("mailto:support@owotrack.com")}
+            onPress={() => setSupportVisible(true)}
             colors={colors}
           />
         </SectionCard>
@@ -911,6 +912,87 @@ export default function ProfileScreen() {
 
         <View style={{ height: 56 }} />
       </ScrollView>
+
+      {/* ── Support Modal ── */}
+      <Modal
+        visible={supportVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSupportVisible(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}
+          onPress={() => setSupportVisible(false)}
+        >
+          <Pressable onPress={() => {}}>
+            <View style={{
+              backgroundColor: colors.surface,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: 24,
+              paddingBottom: 36,
+            }}>
+              {/* Handle */}
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: "center", marginBottom: 20 }} />
+
+              <Text style={{ fontSize: 18, fontWeight: "800", color: colors.textPrimary, marginBottom: 6 }}>
+                Contact Support
+              </Text>
+              <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 24, lineHeight: 19 }}>
+                We're here to help. Reach us through any of the channels below.
+              </Text>
+
+              {/* WhatsApp */}
+              <TouchableOpacity
+                style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}
+                onPress={() => Linking.openURL("whatsapp://send?phone=2349011495230&text=Hello%2C%20I%20need%20help%20with%20OwoTrack")}
+                activeOpacity={0.7}
+              >
+                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "#25D36620", alignItems: "center", justifyContent: "center", marginRight: 14 }}>
+                  <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: colors.textPrimary }}>WhatsApp</Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>+234 901 149 5230 · Fastest response</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              {/* Support Email */}
+              <TouchableOpacity
+                style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}
+                onPress={() => Linking.openURL("mailto:support@techsphereapp.com?subject=OwoTrack%20Support")}
+                activeOpacity={0.7}
+              >
+                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.primary + "18", alignItems: "center", justifyContent: "center", marginRight: 14 }}>
+                  <Ionicons name="mail-outline" size={20} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: colors.textPrimary }}>Email Support</Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>support@techsphereapp.com</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              {/* General Enquiries */}
+              <TouchableOpacity
+                style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14 }}
+                onPress={() => Linking.openURL("mailto:info@techsphereapp.com?subject=OwoTrack%20Enquiry")}
+                activeOpacity={0.7}
+              >
+                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.secondary + "18", alignItems: "center", justifyContent: "center", marginRight: 14 }}>
+                  <Ionicons name="information-circle-outline" size={20} color={colors.secondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: colors.textPrimary }}>General Enquiries</Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>info@techsphereapp.com</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* ── Edit Profile Modal ── */}
       <Modal
