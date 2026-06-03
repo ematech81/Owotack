@@ -11,7 +11,7 @@ export interface ICredit {
   amountPaid: number;
   balance: number;
   dueDate: string;
-  status: "active" | "due_soon" | "overdue" | "paid";
+  status: "pending" | "active" | "due_soon" | "overdue" | "paid";
   payments: { amount: number; date: string; note?: string }[];
   syncStatus: "synced" | "pending" | "failed";
   createdAt: string;

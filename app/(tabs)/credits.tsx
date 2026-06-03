@@ -41,10 +41,11 @@ const DAY_LABELS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 
 function statusConfig(status: ICredit["status"]) {
   switch (status) {
-    case "overdue":  return { label: "Overdue",  color: "#EF4444", icon: "alert-circle" as const,      bg: "#FEF2F2" };
-    case "due_soon": return { label: "Due Soon", color: "#D97706", icon: "time-outline" as const,       bg: "#FFFBEB" };
-    case "paid":     return { label: "Paid",     color: "#059669", icon: "checkmark-circle" as const,   bg: "#F0FDF4" };
-    default:         return { label: "Active",   color: "#3B82F6", icon: "ellipse-outline" as const,    bg: "#EFF6FF" };
+    case "overdue":  return { label: "Overdue",  color: "#EF4444", icon: "alert-circle" as const,       bg: "#FEF2F2" };
+    case "due_soon": return { label: "Due Soon", color: "#D97706", icon: "time-outline" as const,        bg: "#FFFBEB" };
+    case "paid":     return { label: "Paid",     color: "#059669", icon: "checkmark-circle" as const,    bg: "#F0FDF4" };
+    case "pending":  return { label: "Pending",  color: "#3B82F6", icon: "hourglass-outline" as const,   bg: "#EFF6FF" };
+    default:         return { label: "Pending",  color: "#3B82F6", icon: "hourglass-outline" as const,   bg: "#EFF6FF" };
   }
 }
 
@@ -228,6 +229,11 @@ export default function CreditsScreen() {
                         : ""}
                     </Text>
                   </View>
+                  {credit.dueDate && (
+                    <Text style={[styles.creditStatusText, { color: "#6B7280", marginTop: 2 }]}>
+                      Due: {new Date(credit.dueDate).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
+                    </Text>
+                  )}
                 </View>
                 <View style={styles.creditRight}>
                   {(credit.status === "overdue" || credit.status === "due_soon") && (
@@ -382,12 +388,13 @@ function AddPhoneModal({ visible, credit, onSaved, onCancel, colors, styles }: {
 }
 
 // ─── Date Picker Modal ────────────────────────────────────────────────────────
-function DatePickerModal({ visible, value, onConfirm, onClose, colors }: {
+function DatePickerModal({ visible, value, onConfirm, onClose, colors, disablePast = false }: {
   visible: boolean;
   value: Date | null;
   onConfirm: (date: Date) => void;
   onClose: () => void;
   colors: ReturnType<typeof useTheme>;
+  disablePast?: boolean;
 }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(() => (value ?? today).getFullYear());
@@ -422,9 +429,19 @@ function DatePickerModal({ visible, value, onConfirm, onClose, colors }: {
     !!selected && selected.getFullYear() === viewYear && selected.getMonth() === viewMonth && selected.getDate() === d;
   const isTod = (d: number) =>
     today.getFullYear() === viewYear && today.getMonth() === viewMonth && today.getDate() === d;
+  const isPast = (d: number) => {
+    if (!disablePast) return false;
+    const date = new Date(viewYear, viewMonth, d);
+    date.setHours(0, 0, 0, 0);
+    const t = new Date(today); t.setHours(0, 0, 0, 0);
+    return date < t;
+  };
+
+  const canGoPrev = !disablePast || viewYear > today.getFullYear() ||
+    (viewYear === today.getFullYear() && viewMonth > today.getMonth());
 
   const handleDay = (d: number | null) => {
-    if (!d) return;
+    if (!d || isPast(d)) return;
     const date = new Date(viewYear, viewMonth, d);
     setSelected(date);
     onConfirm(date);
@@ -435,8 +452,8 @@ function DatePickerModal({ visible, value, onConfirm, onClose, colors }: {
       <TouchableOpacity style={dpStyles.overlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity activeOpacity={1} style={[dpStyles.container, { backgroundColor: colors.background, borderColor: colors.border }]}>
           <View style={dpStyles.calHeader}>
-            <TouchableOpacity onPress={() => navigateMonth(-1)} style={dpStyles.navBtn}>
-              <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
+            <TouchableOpacity onPress={() => navigateMonth(-1)} style={dpStyles.navBtn} disabled={!canGoPrev}>
+              <Ionicons name="chevron-back" size={20} color={canGoPrev ? colors.textPrimary : colors.border} />
             </TouchableOpacity>
             <Text style={[dpStyles.monthTitle, { color: colors.textPrimary }]}>
               {MONTH_NAMES_CAL[viewMonth]} {viewYear}
@@ -458,11 +475,13 @@ function DatePickerModal({ visible, value, onConfirm, onClose, colors }: {
                 key={i}
                 style={[dpStyles.cell, !!d && isSel(d) && { backgroundColor: colors.primary, borderRadius: 20 }]}
                 onPress={() => handleDay(d)}
-                disabled={!d}
+                disabled={!d || isPast(d)}
               >
                 {d ? (
                   <>
-                    <Text style={[dpStyles.cellText, { color: isSel(d) ? "#fff" : isTod(d) ? colors.primary : colors.textPrimary }]}>
+                    <Text style={[dpStyles.cellText, {
+                      color: isSel(d) ? "#fff" : isPast(d) ? colors.border : isTod(d) ? colors.primary : colors.textPrimary,
+                    }]}>
                       {d}
                     </Text>
                     {isTod(d) && !isSel(d) && <View style={[dpStyles.todayDot, { backgroundColor: colors.primary }]} />}
@@ -521,7 +540,8 @@ function AddCreditModal({ visible, onClose, colors, styles }: {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [creditLines, setCreditLines] = useState<CreditLineItem[]>([emptyCreditLine()]);
-  const [dueDateObj, setDueDateObj] = useState<Date | null>(null);
+  const defaultDueDate = (() => { const d = new Date(); d.setDate(d.getDate() + 3); d.setHours(0,0,0,0); return d; })();
+  const [dueDateObj, setDueDateObj] = useState<Date | null>(defaultDueDate);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
@@ -542,7 +562,7 @@ function AddCreditModal({ visible, onClose, colors, styles }: {
   }, [visible, draftKey]);
 
   const reset = () => {
-    setName(""); setPhone(""); setCreditLines([emptyCreditLine()]); setDueDateObj(null);
+    setName(""); setPhone(""); setCreditLines([emptyCreditLine()]); setDueDateObj(defaultDueDate);
     setDraftSavedAt(null);
   };
 
@@ -795,6 +815,7 @@ function AddCreditModal({ visible, onClose, colors, styles }: {
         onConfirm={(date) => { setDueDateObj(date); setShowDatePicker(false); }}
         onClose={() => setShowDatePicker(false)}
         colors={colors}
+        disablePast
       />
     </Modal>
   );

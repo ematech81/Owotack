@@ -16,9 +16,10 @@ interface Props {
   onClose: () => void;
   colors: AppColors;
   disableFuture?: boolean;
+  disablePast?: boolean;
 }
 
-export function DatePickerModal({ visible, value, onConfirm, onClose, colors, disableFuture = false }: Props) {
+export function DatePickerModal({ visible, value, onConfirm, onClose, colors, disableFuture = false, disablePast = false }: Props) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(() => (value ?? today).getFullYear());
   const [viewMonth, setViewMonth] = useState(() => (value ?? today).getMonth());
@@ -47,6 +48,11 @@ export function DatePickerModal({ visible, value, onConfirm, onClose, colors, di
     (viewYear === today.getFullYear() && viewMonth < today.getMonth())
   );
 
+  const canGoPrev = !disablePast || (
+    viewYear > today.getFullYear() ||
+    (viewYear === today.getFullYear() && viewMonth > today.getMonth())
+  );
+
   const isFutureDay = (d: number) => {
     if (!disableFuture) return false;
     const date = new Date(viewYear, viewMonth, d);
@@ -54,6 +60,15 @@ export function DatePickerModal({ visible, value, onConfirm, onClose, colors, di
     const t = new Date(today);
     t.setHours(0, 0, 0, 0);
     return date > t;
+  };
+
+  const isPastDay = (d: number) => {
+    if (!disablePast) return false;
+    const date = new Date(viewYear, viewMonth, d);
+    date.setHours(0, 0, 0, 0);
+    const t = new Date(today);
+    t.setHours(0, 0, 0, 0);
+    return date < t;
   };
 
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();
@@ -74,7 +89,7 @@ export function DatePickerModal({ visible, value, onConfirm, onClose, colors, di
     today.getDate() === d;
 
   const handleDay = (d: number | null) => {
-    if (!d || isFutureDay(d)) return;
+    if (!d || isFutureDay(d) || isPastDay(d)) return;
     const date = new Date(viewYear, viewMonth, d);
     setSelected(date);
     onConfirm(date);
@@ -88,8 +103,8 @@ export function DatePickerModal({ visible, value, onConfirm, onClose, colors, di
           style={[s.container, { backgroundColor: colors.background, borderColor: colors.border }]}
         >
           <View style={s.calHeader}>
-            <TouchableOpacity onPress={() => navigateMonth(-1)} style={s.navBtn}>
-              <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
+            <TouchableOpacity onPress={() => navigateMonth(-1)} style={s.navBtn} disabled={!canGoPrev}>
+              <Ionicons name="chevron-back" size={20} color={canGoPrev ? colors.textPrimary : colors.border} />
             </TouchableOpacity>
             <Text style={[s.monthTitle, { color: colors.textPrimary }]}>
               {MONTH_NAMES[viewMonth]} {viewYear}
@@ -107,7 +122,7 @@ export function DatePickerModal({ visible, value, onConfirm, onClose, colors, di
 
           <View style={s.grid}>
             {cells.map((d, i) => {
-              const disabled = !d || isFutureDay(d);
+              const disabled = !d || isFutureDay(d) || isPastDay(d);
               return (
                 <TouchableOpacity
                   key={i}
