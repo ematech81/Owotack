@@ -599,7 +599,7 @@ export default function SubscribeScreen() {
           )}
 
           <Text style={mainS.legal}>
-            Payments are processed securely via Flutterwave.{"\n"}
+            Payments are processed securely via Korapay.{"\n"}
             Subscriptions renew monthly. Cancel anytime.
           </Text>
 
