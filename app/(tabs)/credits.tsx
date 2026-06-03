@@ -540,7 +540,7 @@ function AddCreditModal({ visible, onClose, colors, styles }: {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [creditLines, setCreditLines] = useState<CreditLineItem[]>([emptyCreditLine()]);
-  const defaultDueDate = (() => { const d = new Date(); d.setDate(d.getDate() + 3); d.setHours(0,0,0,0); return d; })();
+  const defaultDueDate = (() => { const d = new Date(); d.setDate(d.getDate() + 3); d.setHours(12,0,0,0); return d; })();
   const [dueDateObj, setDueDateObj] = useState<Date | null>(defaultDueDate);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -623,7 +623,7 @@ function AddCreditModal({ visible, onClose, colors, styles }: {
         customerPhone: phone.trim() || undefined,
         description: finalDesc,
         amount: finalAmount,
-        dueDate: dueDateObj.toISOString(),
+        dueDate: (() => { const d = new Date(dueDateObj); d.setHours(12, 0, 0, 0); return d.toISOString(); })(),
       });
       if (draftKey) await draftStorage.clear(draftKey);
       Alert.alert("Saved!", `Credit of ${formatNaira(finalAmount)} recorded for ${name}`);
@@ -788,6 +788,12 @@ function AddCreditModal({ visible, onClose, colors, styles }: {
                 </Text>
                 <Ionicons name="calendar-outline" size={18} color={colors.textMuted} />
               </TouchableOpacity>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 6 }}>
+                <Ionicons name="information-circle-outline" size={13} color={colors.textMuted} />
+                <Text style={{ fontSize: 12, color: colors.textMuted, flex: 1, lineHeight: 16 }}>
+                  Select the date you expect this customer to pay. You will be reminded as the date approaches.
+                </Text>
+              </View>
             </View>
 
             {draftSavedAt ? (
