@@ -62,21 +62,22 @@ export default function ProfileSetupScreen() {
           <Text style={styles.title}>Tell Us About You</Text>
           <Text style={styles.subtitle}>Help us personalize your experience</Text>
 
+          <Text style={styles.fieldLabel}>Your Name</Text>
           <Controller
             control={control}
             name="name"
             render={({ field: { onChange, value } }) => (
-              <Input label="Your Name *" placeholder="e.g. Chioma Okafor" value={value}
+              <Input placeholder="e.g. Chioma Okafor" value={value}
                 onChangeText={onChange} leftIcon="person-outline" error={errors.name?.message} />
             )}
           />
 
+          <Text style={styles.fieldLabel}>Email Address</Text>
           <Controller
             control={control}
             name="email"
             render={({ field: { onChange, value } }) => (
               <Input
-                label="Email Address (optional)"
                 placeholder="e.g. chioma@gmail.com"
                 value={value}
                 onChangeText={onChange}
@@ -88,16 +89,17 @@ export default function ProfileSetupScreen() {
             )}
           />
 
+          <Text style={styles.fieldLabel}>Business Name</Text>
           <Controller
             control={control}
             name="businessName"
             render={({ field: { onChange, value } }) => (
-              <Input label="Business Name (optional)" placeholder="e.g. Chioma Foods & Provisions"
+              <Input placeholder="e.g. Chioma Foods & Provisions"
                 value={value} onChangeText={onChange} leftIcon="storefront-outline" />
             )}
           />
 
-          <Text style={styles.fieldLabel}>Type of Business *</Text>
+          <Text style={styles.fieldLabel}>Type of Business</Text>
           <Controller
             control={control}
             name="businessType"
@@ -117,7 +119,6 @@ export default function ProfileSetupScreen() {
               </View>
             )}
           />
-          {errors.businessType && <Text style={styles.error}>{errors.businessType.message}</Text>}
 
           <Text style={styles.fieldLabel}>Preferred Language</Text>
           <Controller
@@ -140,11 +141,12 @@ export default function ProfileSetupScreen() {
             )}
           />
 
+          <Text style={styles.fieldLabel}>Referral Code (optional)</Text>
           <Controller
             control={control}
             name="referralCode"
             render={({ field: { onChange, value } }) => (
-              <Input label="Referral Code (optional)" placeholder="e.g. ABC12345" value={value}
+              <Input placeholder="e.g. ABC12345" value={value}
                 onChangeText={(v) => onChange(v.toUpperCase())} leftIcon="gift-outline" autoCapitalize="characters" />
             )}
           />
@@ -161,13 +163,17 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 24 },
   title: { fontSize: 26, fontWeight: "700", color: colors.textPrimary, marginBottom: 8 },
   subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: 32 },
-  fieldLabel: { fontSize: 14, fontWeight: "500", color: colors.textPrimary, marginBottom: 10 },
+  fieldLabel: {
+    fontSize: 16, fontWeight: "700", color: colors.textPrimary,
+    marginBottom: 10, marginTop: 4,
+    borderLeftWidth: 3, borderLeftColor: colors.primary, paddingLeft: 10,
+  },
   chipGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 24 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  chip: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 24, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 13, color: colors.textSecondary },
-  chipTextActive: { color: colors.white, fontWeight: "600" },
+  chipText: { fontSize: 15, color: colors.textSecondary, fontWeight: "500" },
+  chipTextActive: { color: colors.white, fontWeight: "700" },
   error: { fontSize: 12, color: colors.danger, marginBottom: 12 },
   btn: { marginTop: 8, marginBottom: 40 },
 });

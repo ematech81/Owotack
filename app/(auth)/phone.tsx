@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
@@ -103,19 +102,12 @@ export default function PhoneScreen() {
             )}
           />
 
-          <View style={styles.emailBanner}>
-            <Ionicons name="warning-outline" size={16} color="#B45309" />
-            <Text style={styles.emailBannerText}>
-              Add your email — SMS OTP is only available 8am–6pm. Email works 24/7.
-            </Text>
-          </View>
-
           <Controller
             control={control}
             name="email"
             render={({ field: { onChange, value } }) => (
               <Input
-                label="Email Address (Strongly Recommended)"
+                label="Email Address"
                 placeholder="e.g. chioma@gmail.com"
                 value={value}
                 onChangeText={onChange}
@@ -140,11 +132,5 @@ const styles = StyleSheet.create({
   header: { marginBottom: 40 },
   title: { fontSize: 28, fontWeight: "700", color: colors.textPrimary, marginBottom: 8 },
   subtitle: { fontSize: 16, color: colors.textSecondary, lineHeight: 24 },
-  emailBanner: {
-    flexDirection: "row", alignItems: "flex-start", gap: 8,
-    backgroundColor: "#FEF3C7", borderRadius: 10, padding: 12, marginBottom: 12,
-    borderWidth: 1, borderColor: "#FCD34D",
-  },
-  emailBannerText: { flex: 1, fontSize: 13, color: "#92400E", lineHeight: 19, fontWeight: "500" },
   btn: { marginTop: 8 },
 });
