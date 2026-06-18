@@ -9,10 +9,10 @@ interface AuthTokens {
 }
 
 export const authService = {
-  async sendOtp(phone: string) {
-    const res = await api.post<ApiResponse<{ isNewUser: boolean; devOtp?: string }>>(
+  async sendOtp(phone: string, email?: string, forceEmail?: boolean) {
+    const res = await api.post<ApiResponse<{ isNewUser: boolean; devOtp?: string; emailUsed?: boolean }>>(
       "/auth/send-otp",
-      { phone }
+      { phone, email: email || undefined, forceEmail: forceEmail || undefined }
     );
     return res.data.data;
   },
@@ -29,6 +29,7 @@ export const authService = {
     tempToken: string;
     name: string;
     phone: string;
+    email?: string;
     businessName?: string;
     businessType?: string;
     location?: { state?: string; city?: string; market?: string };
@@ -63,8 +64,8 @@ export const authService = {
   },
 
   async forgotPin(phone: string) {
-    const res = await api.post<ApiResponse<unknown>>("/auth/forgot-pin", { phone });
-    return res.data;
+    const res = await api.post<ApiResponse<{ emailUsed?: boolean; maskedEmail?: string }>>("/auth/forgot-pin", { phone });
+    return res.data.data;
   },
 
   async resetPin(phone: string, otp: string, newPin: string) {

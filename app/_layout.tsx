@@ -1,6 +1,6 @@
 import "react-native-get-random-values";
 import { useEffect } from "react";
-import { useColorScheme, Linking } from "react-native";
+import { useColorScheme, Linking, View } from "react-native";
 import { Stack, router, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -30,7 +30,10 @@ export default function RootLayout() {
     registerAuthFailHandler(() => {
       useAuthStore.getState().logout();
     });
-    Promise.all([initDatabase(), initialize()]).finally(() => SplashScreen.hideAsync());
+    // Auth state resolves the splash screen — SQLite runs independently so a
+    // slow/hung DB open on some Android phones never blocks the UI from loading.
+    initialize().finally(() => SplashScreen.hideAsync());
+    initDatabase().catch(() => {});
 
     // Handle referral deep link: owotrack://join?ref=CODE
     // Navigates unauthenticated users into the registration flow with referral code pre-filled
@@ -101,7 +104,7 @@ export default function RootLayout() {
     // hasOnboarded = true but hasEverLoggedIn = false → mid-registration, no redirect
   }, [isInitialized, isAuthenticated, hasOnboarded, hasEverLoggedIn, pinLocked, lastPhone, segmentPath]);
 
-  if (!isInitialized) return null;
+  if (!isInitialized) return <View style={{ flex: 1, backgroundColor: colors.background }} />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>

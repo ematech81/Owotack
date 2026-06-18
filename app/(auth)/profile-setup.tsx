@@ -13,8 +13,9 @@ import { BUSINESS_TYPES, LANGUAGES } from "../../src/constants/categories";
 
 const schema = z.object({
   name: z.string().min(2, "Enter your name"),
+  email: z.string().email("Enter a valid email").optional().or(z.literal("")),
   businessName: z.string().optional(),
-  businessType: z.string().min(1, "Select business type"),
+  businessType: z.string().optional(),
   state: z.string().optional(),
   preferredLanguage: z.string().default("pidgin"),
   referralCode: z.string().optional(),
@@ -25,14 +26,15 @@ type FormData = z.infer<typeof schema>;
 export default function ProfileSetupScreen() {
   // `ref` arrives when the user tapped a share link: owotrack://join?ref=CODE
   // or https://owotrack.com/join?ref=CODE (via universal link / Expo deep link)
-  const { phone, tempToken, ref } = useLocalSearchParams<{ phone: string; tempToken: string; ref?: string }>();
+  const { phone, tempToken, ref, email: emailParam } = useLocalSearchParams<{ phone: string; tempToken: string; ref?: string; email?: string }>();
   const [loading] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       preferredLanguage: "pidgin",
-      referralCode: ref ?? "",   // pre-fill from deep link
+      referralCode: ref ?? "",
+      email: emailParam ?? "",
     },
   });
 
@@ -42,6 +44,7 @@ export default function ProfileSetupScreen() {
       params: {
         phone, tempToken,
         name: data.name,
+        email: data.email || "",
         businessName: data.businessName || "",
         businessType: data.businessType,
         state: data.state || "",
@@ -65,6 +68,23 @@ export default function ProfileSetupScreen() {
             render={({ field: { onChange, value } }) => (
               <Input label="Your Name *" placeholder="e.g. Chioma Okafor" value={value}
                 onChangeText={onChange} leftIcon="person-outline" error={errors.name?.message} />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Email Address (optional)"
+                placeholder="e.g. chioma@gmail.com"
+                value={value}
+                onChangeText={onChange}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                leftIcon="mail-outline"
+                error={errors.email?.message}
+              />
             )}
           />
 

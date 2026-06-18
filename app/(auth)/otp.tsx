@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { authService } from "../../src/services/authService";
@@ -20,13 +21,16 @@ import { colors } from "../../src/constants/colors";
 const OTP_LENGTH = 6;
 
 export default function OTPScreen() {
-  const { phone, isNewUser, devOtp, mode, ref } = useLocalSearchParams<{
+  const { phone, isNewUser, devOtp, mode, ref, email, emailUsed: emailUsedParam } = useLocalSearchParams<{
     phone: string;
     isNewUser: string;
     devOtp?: string;
     mode?: string;
     ref?: string;
+    email?: string;
+    emailUsed?: string;
   }>();
+  const [sentToEmail, setSentToEmail] = useState(emailUsedParam === "1");
   const [otp, setOtp] = useState(() =>
     devOtp ? devOtp.split("").slice(0, OTP_LENGTH) : Array(OTP_LENGTH).fill("")
   );
@@ -71,7 +75,7 @@ export default function OTPScreen() {
     try {
       const result = await authService.verifyOtp(phone, code);
       if (isNewUser === "1" || result.isNewUser) {
-        router.push({ pathname: "/(auth)/profile-setup", params: { phone, tempToken: result.tempToken, ref: ref ?? "" } });
+        router.push({ pathname: "/(auth)/profile-setup", params: { phone, tempToken: result.tempToken, ref: ref ?? "", email: email ?? "" } });
       } else {
         router.push({ pathname: "/(auth)/login", params: { phone } });
       }
@@ -88,12 +92,26 @@ export default function OTPScreen() {
   const handleResend = async () => {
     if (resendCooldown > 0) return;
     try {
-      await authService.sendOtp(phone);
+      const result = await authService.sendOtp(phone, email || undefined);
+      setSentToEmail(result.emailUsed ?? false);
       setResendCooldown(60);
       setOtp(Array(OTP_LENGTH).fill(""));
-      Alert.alert("Sent!", "New OTP don land your phone");
+      Alert.alert("Sent!", result.emailUsed ? "Check your email for the new access key" : "New OTP don land your phone");
     } catch {
       Alert.alert("Error", "No fit send OTP. Try again.");
+    }
+  };
+
+  const handleSendToEmail = async () => {
+    if (!email) return;
+    try {
+      await authService.sendOtp(phone, email, true);
+      setSentToEmail(true);
+      setResendCooldown(60);
+      setOtp(Array(OTP_LENGTH).fill(""));
+      Alert.alert("Sent!", `Access key don go ${email}`);
+    } catch {
+      Alert.alert("Error", "No fit send to email. Try again.");
     }
   };
 
@@ -108,7 +126,9 @@ export default function OTPScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Enter OTP</Text>
           <Text style={styles.subtitle}>
-            We don send 6-digit code go {maskedPhone}
+            {sentToEmail
+              ? `We don send access key go your email${email ? ` (${email})` : ""}`
+              : `We don send 6-character code go ${maskedPhone}`}
           </Text>
         </View>
 
@@ -138,6 +158,13 @@ export default function OTPScreen() {
             {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : "Resend OTP"}
           </Text>
         </TouchableOpacity>
+
+        {email && !sentToEmail && (
+          <TouchableOpacity onPress={handleSendToEmail} style={styles.emailFallbackBtn} activeOpacity={0.8}>
+            <Ionicons name="mail-outline" size={20} color={colors.primary} />
+            <Text style={styles.emailFallbackText}>Send access key to my email</Text>
+          </TouchableOpacity>
+        )}
       </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -174,4 +201,11 @@ const styles = StyleSheet.create({
   resend: { alignItems: "center", marginTop: 24 },
   resendText: { fontSize: 14, color: colors.primary, fontWeight: "600" },
   resendDisabled: { color: colors.textMuted },
+  emailFallbackBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    marginTop: 16, paddingVertical: 14, paddingHorizontal: 24,
+    borderRadius: 12, borderWidth: 2, borderColor: colors.primary,
+    backgroundColor: "#F0FDF4",
+  },
+  emailFallbackText: { fontSize: 16, color: colors.primary, fontWeight: "700" },
 });

@@ -12,6 +12,19 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Android 8+ requires a notification channel. This must be created before any
+// notification can appear. The channel name shows in Android Settings → App notifications.
+if (Platform.OS === "android") {
+  Notifications.setNotificationChannelAsync("default", {
+    name: "OwoTrack",
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: "#1A6B3C",
+    sound: "default",
+    showBadge: true,
+  });
+}
+
 export const notificationService = {
   async register(): Promise<void> {
     if (Platform.OS === "web") return;

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
@@ -16,6 +17,11 @@ const schema = z.object({
     .string()
     .min(1, "Enter your phone number")
     .regex(/^(\+234|0)[789][01]\d{8}$/, "Enter a valid Nigerian phone number"),
+  email: z
+    .string()
+    .email("Enter a valid email address")
+    .optional()
+    .or(z.literal("")),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -28,16 +34,23 @@ export default function PhoneScreen() {
     resolver: zodResolver(schema),
   });
 
-  const onSubmit = async ({ phone }: FormData) => {
+  const doSendOtp = async (phone: string, email: string | undefined) => {
     const normalized = phone.startsWith("0") ? `+234${phone.slice(1)}` : phone;
+    const cleanEmail = email?.trim() || undefined;
     setLoading(true);
     try {
-      const result = await authService.sendOtp(normalized);
+      const result = await authService.sendOtp(normalized, cleanEmail);
       if (__DEV__ && result.devOtp) console.log(`[DEV OTP for ${normalized}]: ${result.devOtp}`);
       router.push({
         pathname: "/(auth)/otp",
-        // carry ref forward so it reaches profile-setup
-        params: { phone: normalized, isNewUser: result.isNewUser ? "1" : "0", devOtp: result.devOtp ?? "", ref: ref ?? "" },
+        params: {
+          phone: normalized,
+          isNewUser: result.isNewUser ? "1" : "0",
+          devOtp: result.devOtp ?? "",
+          ref: ref ?? "",
+          email: cleanEmail ?? "",
+          emailUsed: result.emailUsed ? "1" : "0",
+        },
       });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Failed to send OTP";
@@ -45,6 +58,22 @@ export default function PhoneScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const onSubmit = ({ phone, email }: FormData) => {
+    const cleanEmail = email?.trim() || undefined;
+    if (!cleanEmail) {
+      Alert.alert(
+        "Add Your Email",
+        "Without email, you cannot receive your access code at night when SMS is unavailable. Add email to avoid being locked out.",
+        [
+          { text: "Add Email", style: "cancel" },
+          { text: "Continue Without Email", style: "destructive", onPress: () => doSendOtp(phone, undefined) },
+        ]
+      );
+      return;
+    }
+    doSendOtp(phone, cleanEmail);
   };
 
   return (
@@ -74,9 +103,29 @@ export default function PhoneScreen() {
             )}
           />
 
-          <Text style={styles.note}>
-            We only dey send OTP — no wahala, no spam calls.
-          </Text>
+          <View style={styles.emailBanner}>
+            <Ionicons name="warning-outline" size={16} color="#B45309" />
+            <Text style={styles.emailBannerText}>
+              Add your email — SMS OTP is only available 8am–6pm. Email works 24/7.
+            </Text>
+          </View>
+
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Email Address (Strongly Recommended)"
+                placeholder="e.g. chioma@gmail.com"
+                value={value}
+                onChangeText={onChange}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                leftIcon="mail-outline"
+                error={errors.email?.message}
+              />
+            )}
+          />
 
           <Button title="Send OTP" onPress={handleSubmit(onSubmit)} loading={loading} style={styles.btn} />
         </ScrollView>
@@ -91,6 +140,11 @@ const styles = StyleSheet.create({
   header: { marginBottom: 40 },
   title: { fontSize: 28, fontWeight: "700", color: colors.textPrimary, marginBottom: 8 },
   subtitle: { fontSize: 16, color: colors.textSecondary, lineHeight: 24 },
-  note: { fontSize: 13, color: colors.textMuted, marginBottom: 32, lineHeight: 20 },
+  emailBanner: {
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    backgroundColor: "#FEF3C7", borderRadius: 10, padding: 12, marginBottom: 12,
+    borderWidth: 1, borderColor: "#FCD34D",
+  },
+  emailBannerText: { flex: 1, fontSize: 13, color: "#92400E", lineHeight: 19, fontWeight: "500" },
   btn: { marginTop: 8 },
 });

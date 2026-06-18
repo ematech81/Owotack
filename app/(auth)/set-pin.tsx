@@ -13,7 +13,7 @@ const PIN_LENGTH = 4;
 export default function SetPinScreen() {
   const colors = useTheme();
   const params = useLocalSearchParams<{
-    phone: string; tempToken: string; name: string; businessName: string;
+    phone: string; tempToken: string; name: string; email: string; businessName: string;
     businessType: string; state: string; preferredLanguage: string; referralCode: string;
   }>();
 
@@ -49,6 +49,7 @@ export default function SetPinScreen() {
         tempToken: params.tempToken,
         name: params.name,
         phone: params.phone,
+        email: params.email || undefined,
         businessName: params.businessName || undefined,
         businessType: params.businessType || undefined,
         location: params.state ? { state: params.state } : undefined,

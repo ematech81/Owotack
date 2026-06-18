@@ -21,13 +21,18 @@ export default function ForgotPinScreen() {
     }
     setLoading(true);
     try {
-      await authService.forgotPin(normalized);
-      Alert.alert("OTP Sent", "Check your phone for the reset OTP", [
+      const result = await authService.forgotPin(normalized);
+      const sentToEmail = result?.emailUsed ?? false;
+      const maskedEmail = result?.maskedEmail;
+      const message = sentToEmail
+        ? `Check your email${maskedEmail ? ` (${maskedEmail})` : ""} for the reset access key`
+        : "Check your phone for the reset OTP";
+      Alert.alert("OTP Sent", message, [
         {
           text: "OK",
           onPress: () => router.push({
             pathname: "/(auth)/otp",
-            params: { phone: normalized, isNewUser: "0", mode: "reset" },
+            params: { phone: normalized, isNewUser: "0", mode: "reset", emailUsed: sentToEmail ? "1" : "0" },
           }),
         },
       ]);

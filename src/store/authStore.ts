@@ -6,6 +6,15 @@ import { clearTipCache } from "../services/aiService";
 import api from "../services/api";
 import { ApiResponse } from "../types";
 
+// On some Android phones (especially with aggressive battery management), the
+// Android Keystore service can hang indefinitely, causing SecureStore calls to
+// never resolve. This wrapper ensures every read completes within the timeout.
+const secureRead = (key: string, timeoutMs = 3000): Promise<string | null> =>
+  Promise.race([
+    SecureStore.getItemAsync(key),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+  ]);
+
 const USER_CACHE_KEY = "cached_user";
 const ONBOARDED_KEY = "has_onboarded";
 const EVER_LOGGED_IN_KEY = "has_ever_logged_in";
@@ -58,12 +67,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialize: async () => {
     try {
       const [token, onboarded, rawCached, everLoggedIn, autoLogin, lastPhoneRaw] = await Promise.all([
-        getStoredToken(),
-        SecureStore.getItemAsync(ONBOARDED_KEY),
-        SecureStore.getItemAsync(USER_CACHE_KEY),
-        SecureStore.getItemAsync(EVER_LOGGED_IN_KEY),
-        SecureStore.getItemAsync(AUTO_LOGIN_KEY),
-        SecureStore.getItemAsync("last_phone"),
+        secureRead("accessToken"),
+        secureRead(ONBOARDED_KEY),
+        secureRead(USER_CACHE_KEY),
+        secureRead(EVER_LOGGED_IN_KEY),
+        secureRead(AUTO_LOGIN_KEY),
+        secureRead("last_phone"),
       ]);
 
       const hasOnboarded = onboarded === "true" || everLoggedIn === "true";
