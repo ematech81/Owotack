@@ -2,7 +2,7 @@
   "expo": {
     "name": "OwoTrack",
     "slug": "owo-track",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "owotrack",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.owotrack.app",
-      "versionCode": 7,
+      "versionCode": 12,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundImage": "./assets/images/adaptive-icon-background.png",
@@ -45,6 +45,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/withAndroidManifestFix",
       "expo-router",
       "expo-secure-store",
       [
@@ -67,6 +68,13 @@
         "expo-av",
         {
           "microphonePermission": "Allow OwoTrack to record your voice for entering sales quickly."
+        }
+      ],
+      [
+        "react-native-appsflyer",
+        {
+          "devKey": "HxWmRE9H3kAnvvKeuwL7kh",
+          "appleAppID": ""
         }
       ]
     ],

@@ -911,58 +911,58 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
 
     // ── Hero Card ──
     heroCard: {
-      borderRadius: 24, padding: 22, marginBottom: 14, overflow: "hidden",
+      borderRadius: 20, padding: 16, marginBottom: 14, overflow: "hidden",
       ...Platform.select({
         ios: {
           shadowColor: "#1B4332",
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.25,
-          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.2,
+          shadowRadius: 12,
         },
-        android: { elevation: 8 },
+        android: { elevation: 6 },
       }),
     },
     decCircle1: {
       position: "absolute",
-      width: 180, height: 180, borderRadius: 90,
+      width: 140, height: 140, borderRadius: 70,
       backgroundColor: "rgba(255,255,255,0.04)",
-      top: -60, right: -40,
+      top: -40, right: -30,
     },
     decCircle2: {
       position: "absolute",
-      width: 120, height: 120, borderRadius: 60,
+      width: 90, height: 90, borderRadius: 45,
       backgroundColor: "rgba(255,255,255,0.04)",
-      bottom: -30, left: 20,
+      bottom: -20, left: 16,
     },
     heroTop: {
       flexDirection: "row", justifyContent: "space-between",
-      alignItems: "center", marginBottom: 8,
+      alignItems: "center", marginBottom: 4,
     },
     heroLabel: {
       fontSize: 10, fontWeight: "700",
       color: "rgba(255,255,255,0.6)", letterSpacing: 1.4,
     },
     heroAmount: {
-      fontSize: 36, fontWeight: "900", color: "#fff",
-      letterSpacing: -0.5, marginBottom: 10,
+      fontSize: 28, fontWeight: "900", color: "#fff",
+      letterSpacing: -0.5, marginBottom: 6,
     },
     heroMarginPill: {
       flexDirection: "row", alignItems: "center", gap: 5,
       alignSelf: "flex-start",
       backgroundColor: "rgba(255,255,255,0.15)",
-      paddingHorizontal: 10, paddingVertical: 4,
-      borderRadius: 20, marginBottom: 18,
+      paddingHorizontal: 8, paddingVertical: 3,
+      borderRadius: 20, marginBottom: 10,
     },
     heroMarginText: { fontSize: 11, fontWeight: "700", color: "#fff" },
-    heroDivider: { height: 1, backgroundColor: "rgba(255,255,255,0.12)", marginBottom: 16 },
+    heroDivider: { height: 1, backgroundColor: "rgba(255,255,255,0.12)", marginBottom: 10 },
     heroStatsRow: { flexDirection: "row" },
     heroStatItem: { flex: 1 },
-    heroStatDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.15)", marginHorizontal: 16 },
+    heroStatDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.15)", marginHorizontal: 14 },
     heroStatLabel: {
       fontSize: 10, fontWeight: "700",
-      color: "rgba(255,255,255,0.6)", letterSpacing: 1, marginBottom: 4,
+      color: "rgba(255,255,255,0.6)", letterSpacing: 1, marginBottom: 3,
     },
-    heroStatValue: { fontSize: 18, fontWeight: "800" },
+    heroStatValue: { fontSize: 16, fontWeight: "800" },
 
     // ── Stats Strip ──
     statsStrip: {

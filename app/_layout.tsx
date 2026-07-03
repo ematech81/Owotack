@@ -12,6 +12,7 @@ import { lightColors, darkColors } from "../src/constants/colors";
 import { registerAuthFailHandler } from "../src/services/api";
 import { notificationService } from "../src/services/notificationService";
 import { useOfflineSync } from "../src/hooks/useOfflineSync";
+import { initAppsFlyer } from "../src/services/appsflyerService";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,6 +31,7 @@ export default function RootLayout() {
     registerAuthFailHandler(() => {
       useAuthStore.getState().logout();
     });
+    initAppsFlyer();
     // Auth state resolves the splash screen — SQLite runs independently so a
     // slow/hung DB open on some Android phones never blocks the UI from loading.
     initialize().finally(() => SplashScreen.hideAsync());

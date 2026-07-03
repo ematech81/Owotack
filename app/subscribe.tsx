@@ -13,6 +13,7 @@ import { PLANS, PlanConfig, PlanId, formatLimit } from "../src/config/plans";
 import { colors } from "../src/constants/colors";
 import { formatNaira } from "../src/utils/formatters";
 import { PaymentWebView } from "../src/components/common/PaymentWebView";
+import { afEvents } from "../src/services/appsflyerService";
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 
@@ -494,6 +495,9 @@ export default function SubscribeScreen() {
   const [webviewPaymentLink, setWebviewPaymentLink] = useState("");
   const [webviewTxRef,       setWebviewTxRef]       = useState("");
 
+  // Carries the plan price into the WebView success callback for af_transfer_completed
+  const pendingPlanPrice = useRef<number>(0);
+
   useEffect(() => { loadStatus(); }, []);
 
   const currentPlan = user?.subscription?.plan ?? "free";
@@ -515,6 +519,9 @@ export default function SubscribeScreen() {
 
     setCheckingOut(planId);
     try {
+      const planPrice = PLANS.find((p) => p.id === planId)?.priceNaira ?? 0;
+      pendingPlanPrice.current = planPrice;
+      afEvents.initiatedCheckout(planPrice);
       const { paymentLink, txRef } = await initializeCheckout(planId);
       setWebviewPaymentLink(paymentLink);
       setWebviewTxRef(txRef);
@@ -530,6 +537,7 @@ export default function SubscribeScreen() {
     setWebviewVisible(false);
     try {
       await verifyPayment(txRef);
+      afEvents.transferCompleted(pendingPlanPrice.current, txRef);
       Alert.alert("🎉 Payment Confirmed!", "Your plan has been upgraded successfully.");
       router.back();
     } catch {

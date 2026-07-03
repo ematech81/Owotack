@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 import { User } from "../types";
 import { authService, clearTokens, getStoredToken } from "../services/authService";
 import { clearTipCache } from "../services/aiService";
+import { afEvents } from "../services/appsflyerService";
 import api from "../services/api";
 import { ApiResponse } from "../types";
 
@@ -172,6 +173,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         SecureStore.setItemAsync("last_phone", phone),
       ]);
       set({ user, isAuthenticated: true, hasOnboarded: true, hasEverLoggedIn: true, pinLocked: false, lastPhone: phone });
+      afEvents.login();
     } finally {
       set({ isLoading: false });
     }
@@ -189,6 +191,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         SecureStore.setItemAsync("last_phone", data.phone),
       ]);
       set({ user, isAuthenticated: true, hasOnboarded: true, hasEverLoggedIn: true, pinLocked: false, lastPhone: data.phone });
+      afEvents.completeRegistration();
     } finally {
       set({ isLoading: false });
     }
