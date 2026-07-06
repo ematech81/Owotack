@@ -1295,7 +1295,9 @@ export default function AddSaleScreen() {
 
   const handleSubmitVoice = async () => {
     if (!parsedResult || !user) return;
-    if (!customerName.trim()) { Alert.alert("", "Customer name is required."); return; }
+    if (parsedResult.paymentType === "credit" && !customerName.trim()) {
+      Alert.alert("", "Customer name is required for credit sales."); return;
+    }
     const limitCheck = await checkSalesLimit(user._id, planId);
     if (!limitCheck.allowed) {
       setUpgradeFeature("sales"); setUpgradeUsed(limitCheck.used); setUpgradeLimit(limitCheck.limit);
@@ -1363,7 +1365,9 @@ export default function AddSaleScreen() {
       Alert.alert("", "Add at least one item with product name and price.");
       return;
     }
-    if (!customerName.trim()) { Alert.alert("", "Customer name is required."); return; }
+    if (paymentType === "credit" && !customerName.trim()) {
+      Alert.alert("", "Customer name is required for credit sales."); return;
+    }
     const limitCheck = await checkSalesLimit(user._id, planId);
     if (!limitCheck.allowed) {
       setUpgradeFeature("sales"); setUpgradeUsed(limitCheck.used); setUpgradeLimit(limitCheck.limit);
