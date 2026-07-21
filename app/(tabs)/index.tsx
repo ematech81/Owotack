@@ -351,31 +351,41 @@ export default function DashboardScreen() {
           {/* Divider */}
           <View style={styles.heroDivider} />
 
-          {/* Stats row — identical structure to ledger SummaryCard */}
+          {/* Stats row — NET PROFIT taps to reports, EXPENSES taps to expenses screen */}
           <View style={styles.statsRow}>
-            <View style={styles.stat}>
+            <TouchableOpacity
+              style={styles.stat}
+              onPress={() => router.push("/(tabs)/reports" as any)}
+              activeOpacity={0.7}
+            >
               <View style={styles.statIconWrap}>
                 <Ionicons name="arrow-up" size={12} color="#fff" />
               </View>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.statLabel}>
                   {period === "today" ? "TODAY'S PROFIT" : "NET PROFIT"}
                 </Text>
                 <Text style={styles.statValue}>{formatNaira(netProfit)}</Text>
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.5)" />
+            </TouchableOpacity>
 
             <View style={styles.statDivider} />
 
-            <View style={styles.stat}>
+            <TouchableOpacity
+              style={styles.stat}
+              onPress={() => router.push("/(tabs)/expenses" as any)}
+              activeOpacity={0.7}
+            >
               <View style={[styles.statIconWrap, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
                 <Ionicons name="arrow-down" size={12} color="#fff" />
               </View>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.statLabel}>EXPENSES</Text>
                 <Text style={[styles.statValue, { color: "#FCA5A5" }]}>{formatNaira(totalExpenses)}</Text>
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.5)" />
+            </TouchableOpacity>
           </View>
         </LinearGradient>
 
@@ -402,6 +412,12 @@ export default function DashboardScreen() {
               route: "/(tabs)/credits",
             },
             {
+              label: "Customers",
+              icon: "people-outline" as const,
+              gradient: ["#1E3A5F", "#2563EB"] as [string, string],
+              route: "/(tabs)/customers",
+            },
+            {
               label: "Ask AI",
               icon: "sparkles-outline" as const,
               gradient: ["#0F172A", "#1E1B4B"] as [string, string],
@@ -420,7 +436,7 @@ export default function DashboardScreen() {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Ionicons name={action.icon} size={20} color="#fff" />
+                <Ionicons name={action.icon} size={18} color="#fff" />
               </LinearGradient>
               <Text style={styles.actionLabel}>{action.label}</Text>
             </TouchableOpacity>
@@ -802,16 +818,16 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
     },
     actionBtn: { alignItems: "center", flex: 1 },
     actionIconWrap: {
-      width: 50, height: 50, borderRadius: 15,
-      alignItems: "center", justifyContent: "center", marginBottom: 7,
+      width: 44, height: 44, borderRadius: 13,
+      alignItems: "center", justifyContent: "center", marginBottom: 6,
       ...Platform.select({
         ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.15, shadowRadius: 6 },
         android: { elevation: 3 },
       }),
     },
     actionLabel: {
-      fontSize: 11, fontWeight: "700", color: colors.textSecondary,
-      textAlign: "center", letterSpacing: 0.2,
+      fontSize: 10, fontWeight: "700", color: colors.textSecondary,
+      textAlign: "center", letterSpacing: 0.1,
     },
 
     // ── Payment Alert ──

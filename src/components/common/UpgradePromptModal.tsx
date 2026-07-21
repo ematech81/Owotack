@@ -15,7 +15,7 @@ import { PLANS } from "../../config/plans";
 
 // ─── Feature config ───────────────────────────────────────────────────────────
 
-export type UpgradeFeature = "sales" | "expenses" | "stock" | "ai" | "voice" | "whatsapp" | "reports";
+export type UpgradeFeature = "sales" | "expenses" | "stock" | "credits" | "ai" | "voice" | "whatsapp" | "reports";
 
 interface FeatureConfig {
   icon: string;
@@ -50,13 +50,23 @@ const FEATURE_CONFIG: Record<UpgradeFeature, FeatureConfig> = {
     description: (used, limit) =>
       `You've added ${used} of ${limit} stock items allowed on the free plan. Upgrade to manage your full inventory.`,
   },
+  credits: {
+    icon: "cash-outline",
+    iconColor: "#92400E",
+    iconBg: "#FEF3C7",
+    title: "Credits Limit Reached",
+    description: (used, limit) =>
+      `You have ${used} of ${limit} active credits on the free plan. Upgrade to track unlimited customers who owe you money.`,
+  },
   ai: {
     icon: "sparkles-outline",
     iconColor: "#7C3AED",
     iconBg: "#EDE9FE",
     title: "AI Advisor is a Paid Feature",
-    description: () =>
-      "Get AI-powered business insights, profit analysis, and actionable advice tailored to your business. Available on Growth and above.",
+    description: (used, limit) =>
+      limit > 0
+        ? `You've used all ${limit} AI chats for today. Your daily limit resets at midnight. Upgrade to Pro for unlimited AI coaching.`
+        : "Get AI-powered business insights, profit analysis, and actionable advice tailored to your business. Available on Growth and above.",
   },
   voice: {
     icon: "mic-outline",
@@ -142,7 +152,7 @@ export function UpgradePromptModal({ visible, onClose, feature, used = 0, limit 
           </Text>
 
           {/* Usage bar (only for countable limits) */}
-          {limit > 0 && (feature === "sales" || feature === "expenses" || feature === "stock" || feature === "whatsapp") && (
+          {limit > 0 && (feature === "sales" || feature === "expenses" || feature === "stock" || feature === "credits" || feature === "whatsapp" || feature === "ai") && (
             <View style={s.usageWrap}>
               <View style={s.usageBar}>
                 <View style={[s.usageFill, { backgroundColor: config.iconColor, width: "100%" }]} />

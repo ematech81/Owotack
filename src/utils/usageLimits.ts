@@ -1,6 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getPlanById, isUnlimited } from "../config/plans";
 
+function todayYMD(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export type LimitResult = {
   allowed: boolean;
   used: number;
@@ -21,6 +26,9 @@ function expensesKey(userId: string) {
 }
 function whatsappKey(userId: string) {
   return `usage:whatsapp:${userId}:${monthSuffix()}`;
+}
+function aiDayKey(userId: string) {
+  return `usage:ai:${userId}:${todayYMD()}`;
 }
 
 async function getCount(key: string): Promise<number> {
@@ -108,4 +116,30 @@ export async function getSalesUsage(userId: string): Promise<number> {
 
 export async function getExpensesUsage(userId: string): Promise<number> {
   return getCount(expensesKey(userId));
+}
+
+// Active credits limit — based on current unpaid count, not monthly usage
+export function checkActiveCreditsLimit(currentActiveCount: number, planId: string): LimitResult {
+  const plan = getPlanById(planId as any);
+  const limit = plan.limits.activeCredits;
+  if (isUnlimited(limit)) return { allowed: true, used: currentActiveCount, limit };
+  return { allowed: currentActiveCount < limit, used: currentActiveCount, limit };
+}
+
+// AI chats per day — free=0 (no access), growth=10, pro/business=-1 (unlimited)
+export async function checkAIChatLimit(userId: string, planId: string): Promise<LimitResult> {
+  const plan = getPlanById(planId as any);
+  const limit = plan.limits.aiChatsPerDay;
+  if (limit === 0) return { allowed: false, used: 0, limit: 0 };
+  if (isUnlimited(limit)) return { allowed: true, used: 0, limit };
+  const used = await getCount(aiDayKey(userId));
+  return { allowed: used < limit, used, limit };
+}
+
+export async function recordAIChatUsage(userId: string): Promise<void> {
+  await increment(aiDayKey(userId));
+}
+
+export async function getAIChatUsageToday(userId: string): Promise<number> {
+  return getCount(aiDayKey(userId));
 }

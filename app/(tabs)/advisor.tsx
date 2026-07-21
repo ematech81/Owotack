@@ -12,7 +12,7 @@ import { aiService, AdvisorCard, ChatMessage, startRecording, stopAndTranscribe 
 import { useTheme } from "../../src/hooks/useTheme";
 import { AppStatusBar } from "../../src/components/common/AppStatusBar";
 import { chatErrorMessage, voiceErrorMessage } from "../../src/utils/errorMessages";
-import { checkAIAccess } from "../../src/utils/usageLimits";
+import { checkAIAccess, checkAIChatLimit, recordAIChatUsage } from "../../src/utils/usageLimits";
 import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";
 
 type RecState = "idle" | "recording" | "processing";
@@ -79,6 +79,8 @@ export default function AdvisorScreen() {
   const [recState, setRecState] = useState<RecState>("idle");
   const [greetingLoaded, setGreetingLoaded] = useState(false);
   const [upgradeVisible, setUpgradeVisible] = useState(false);
+  const [upgradeUsed, setUpgradeUsed] = useState(0);
+  const [upgradeLimit, setUpgradeLimit] = useState(0);
 
   const planId = user?.subscription?.plan ?? "free";
   const hasAIAccess = checkAIAccess(planId);
@@ -154,7 +156,22 @@ export default function AdvisorScreen() {
     const trimmed = text.trim();
     if (!trimmed || isSendingRef.current) return;
     if (!hasAIAccess) { setUpgradeVisible(true); return; }
+
+    // Lock the guard immediately so concurrent taps can't slip through
     isSendingRef.current = true;
+
+    // Enforce per-day AI chat limit (Growth plan = 10/day, Pro/Business = unlimited)
+    if (user) {
+      const limitCheck = await checkAIChatLimit(user._id, planId);
+      if (!limitCheck.allowed) {
+        isSendingRef.current = false;
+        setUpgradeUsed(limitCheck.used);
+        setUpgradeLimit(limitCheck.limit);
+        setUpgradeVisible(true);
+        return;
+      }
+      await recordAIChatUsage(user._id);
+    }
 
     // Cancel any previous stream before starting a new one
     streamAbortRef.current?.abort();
@@ -430,6 +447,8 @@ export default function AdvisorScreen() {
         visible={upgradeVisible}
         onClose={() => setUpgradeVisible(false)}
         feature="ai"
+        used={upgradeUsed}
+        limit={upgradeLimit}
       />
     </SafeAreaView>
   );

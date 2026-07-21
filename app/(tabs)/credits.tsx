@@ -10,13 +10,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCreditStore } from "../../src/store/creditStore";
 import { useAuthStore } from "../../src/store/authStore";
-import { ICredit } from "../../src/services/creditService";
+import { ICredit, creditService } from "../../src/services/creditService";
 import { useTheme } from "../../src/hooks/useTheme";
 import { formatNaira, formatDate } from "../../src/utils/formatters";
 import { ProductPickerInput } from "../../src/components/common/ProductPickerInput";
 import { CustomerPickerInput } from "../../src/components/common/CustomerPickerInput";
 import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";
-import { checkWhatsAppLimit, recordWhatsAppUsage } from "../../src/utils/usageLimits";
+import { checkWhatsAppLimit, recordWhatsAppUsage, checkActiveCreditsLimit } from "../../src/utils/usageLimits";
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -62,12 +62,20 @@ export default function CreditsScreen() {
   const [phonePromptCredit, setPhonePromptCredit] = useState<ICredit | null>(null);
 
   const planId = user?.subscription?.plan ?? "free";
+  const [allActiveCount, setAllActiveCount] = useState(0);
 
   const initials2 = (user?.name ?? "U").split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+
+  const refreshAllActiveCount = useCallback(() => {
+    creditService.list().then((all) => {
+      setAllActiveCount(all.filter((c) => c.status !== "paid").length);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     loadCredits();
     loadStats();
+    refreshAllActiveCount();
   }, []);
 
   const sendWhatsApp = async (credit: ICredit, phone: string) => {
@@ -268,7 +276,14 @@ export default function CreditsScreen() {
       </TouchableOpacity>
 
       {/* Add Credit Modal */}
-      <AddCreditModal visible={showAdd} onClose={() => setShowAdd(false)} colors={colors} styles={styles} />
+      <AddCreditModal
+        visible={showAdd}
+        onClose={() => { setShowAdd(false); refreshAllActiveCount(); }}
+        colors={colors}
+        styles={styles}
+        allActiveCount={allActiveCount}
+        planId={planId}
+      />
 
       {/* Credit Detail Modal */}
       {selectedCredit && (
@@ -531,12 +546,16 @@ interface CreditDraft {
   dueDateStr: string | null;
 }
 
-function AddCreditModal({ visible, onClose, colors, styles }: {
+function AddCreditModal({ visible, onClose, colors, styles, allActiveCount, planId }: {
   visible: boolean; onClose: () => void;
   colors: ReturnType<typeof useTheme>; styles: ReturnType<typeof makeStyles>;
+  allActiveCount: number; planId: string;
 }) {
   const { addCredit } = useCreditStore();
   const { user } = useAuthStore();
+  const [upgradeVisible, setUpgradeVisible] = useState(false);
+  const [upgradeUsed, setUpgradeUsed] = useState(0);
+  const [upgradeLimit, setUpgradeLimit] = useState(0);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [creditLines, setCreditLines] = useState<CreditLineItem[]>([emptyCreditLine()]);
@@ -599,6 +618,14 @@ function AddCreditModal({ visible, onClose, colors, styles }: {
   const handleSubmit = async () => {
     if (!name.trim()) { Alert.alert("", "Enter customer name"); return; }
     if (!dueDateObj) { Alert.alert("", "Select a due date"); return; }
+
+    const limitCheck = checkActiveCreditsLimit(allActiveCount, planId);
+    if (!limitCheck.allowed) {
+      setUpgradeUsed(limitCheck.used);
+      setUpgradeLimit(limitCheck.limit);
+      setUpgradeVisible(true);
+      return;
+    }
 
     const validLines = creditLines.filter(
       (l) => l.productName.trim() && Number(l.unitPrice) > 0,
@@ -814,6 +841,14 @@ function AddCreditModal({ visible, onClose, colors, styles }: {
           </ScrollView>
         </SafeAreaView>
       </KeyboardAvoidingView>
+
+      <UpgradePromptModal
+        visible={upgradeVisible}
+        onClose={() => setUpgradeVisible(false)}
+        feature="credits"
+        used={upgradeUsed}
+        limit={upgradeLimit}
+      />
 
       <DatePickerModal
         visible={showDatePicker}
