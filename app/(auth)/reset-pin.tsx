@@ -9,6 +9,7 @@ import { BackButton } from "../../src/components/common/BackButton";
 import { useAuthStore } from "../../src/store/authStore";
 import { authService } from "../../src/services/authService";
 import { useTheme } from "../../src/hooks/useTheme";
+import { getErrorMessage } from "../../src/utils/errorMessages";
 
 const PIN_LENGTH = 4;
 
@@ -52,8 +53,7 @@ export default function ResetPinScreen() {
       await login(phone, pin);
       // _layout.tsx handles navigation to /(tabs) when isAuthenticated becomes true
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Reset failed";
-      Alert.alert("Error", msg);
+      Alert.alert("Error", getErrorMessage(error, "Couldn't reset your PIN. Please try again."));
       setPin("");
       setConfirmPin("");
       setStep("create");

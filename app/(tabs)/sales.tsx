@@ -22,7 +22,7 @@ import { CustomerPickerInput } from "../../src/components/common/CustomerPickerI
 import { DatePickerModal } from "../../src/components/common/DatePickerModal";
 import { colors, AppColors } from "../../src/constants/colors";
 import { parseErrorMessage, saveErrorMessage } from "../../src/utils/errorMessages";
-import { formatNaira } from "../../src/utils/formatters";
+import { formatNairaCompact as formatNaira } from "../../src/utils/formatters";
 import { draftStorage } from "../../src/utils/draft";
 import { saveCustomerName } from "../../src/utils/customers";
 import { checkSalesLimit, checkVoiceAccess, recordSaleUsage } from "../../src/utils/usageLimits";

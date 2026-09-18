@@ -29,7 +29,8 @@ import { useUIStore } from "../../src/store/uiStore";
 import { OfflineBanner } from "../../src/components/common/OfflineBanner";
 import { OnboardingGuideModal } from "../../src/components/common/OnboardingGuideModal";
 import { useTheme } from "../../src/hooks/useTheme";
-import { formatNaira } from "../../src/utils/formatters";
+import { formatNaira, formatNairaCompact } from "../../src/utils/formatters";
+import { AmountVisibilityToggle } from "../../src/components/common/AmountVisibilityToggle";
 import { aiService } from "../../src/services/aiService";
 import { broadcastService, IBroadcast } from "../../src/services/broadcastService";
 import { inAppNotificationService, IUserNotification } from "../../src/services/inAppNotificationService";
@@ -268,6 +269,12 @@ export default function DashboardScreen() {
             </View>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <AmountVisibilityToggle
+              color={colors.primary}
+              backgroundColor={colors.surface}
+              style={styles.helpBtn}
+              size={20}
+            />
             <TouchableOpacity style={styles.helpBtn} onPress={() => setGuideVisible(true)} activeOpacity={0.75}>
               <Ionicons name="help-circle-outline" size={22} color={colors.primary} />
             </TouchableOpacity>
@@ -317,7 +324,7 @@ export default function DashboardScreen() {
             <View style={{ flex: 1, marginRight: 12 }}>
               <Text style={styles.heroCardLabel}>{CARD_LABEL[period]}</Text>
               <Text style={styles.heroAmount} numberOfLines={1} adjustsFontSizeToFit>
-                {formatNaira(totalSales)}
+                {formatNairaCompact(totalSales)}
               </Text>
             </View>
             <View style={styles.periodTabs}>
@@ -365,7 +372,7 @@ export default function DashboardScreen() {
                 <Text style={styles.statLabel}>
                   {period === "today" ? "TODAY'S PROFIT" : "NET PROFIT"}
                 </Text>
-                <Text style={styles.statValue}>{formatNaira(netProfit)}</Text>
+                <Text style={styles.statValue}>{formatNairaCompact(netProfit)}</Text>
               </View>
               <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
@@ -382,7 +389,7 @@ export default function DashboardScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.statLabel}>EXPENSES</Text>
-                <Text style={[styles.statValue, { color: "#FCA5A5" }]}>{formatNaira(totalExpenses)}</Text>
+                <Text style={[styles.statValue, { color: "#FCA5A5" }]}>{formatNairaCompact(totalExpenses)}</Text>
               </View>
               <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>

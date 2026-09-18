@@ -1,4 +1,11 @@
+import { useUIStore } from "../store/uiStore";
+
+// Masked placeholder shown everywhere a naira figure would normally render,
+// when the user has privacy mode (the "hide amounts" toggle) turned on.
+const MASKED = "₦*******";
+
 export const formatNaira = (amount: number): string => {
+  if (useUIStore.getState().amountsHidden) return MASKED;
   const abs = Math.round(Math.abs(amount));
   const formatted = abs.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return amount < 0 ? `-₦${formatted}` : `₦${formatted}`;
@@ -10,9 +17,20 @@ export const parseCurrency = (str: string): number => {
   return isNaN(n) ? 0 : n;
 };
 
+// Trims a decimal to at most 1 place, dropping a trailing ".0" (1.0 -> "1", 1.8 -> "1.8").
+const trimDecimal = (n: number): string => {
+  const rounded = Math.round(n * 10) / 10;
+  return rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1);
+};
+
+// Full comma-separated figures under 1 million (500,000 / 999,000), compact
+// "1m"/"1.8m"/"1.3b" notation at 1 million and above.
 export const formatNairaCompact = (amount: number): string => {
-  if (amount >= 1_000_000) return `₦${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `₦${(amount / 1_000).toFixed(0)}k`;
+  if (useUIStore.getState().amountsHidden) return MASKED;
+  const sign = amount < 0 ? "-" : "";
+  const abs = Math.abs(amount);
+  if (abs >= 1_000_000_000) return `${sign}₦${trimDecimal(abs / 1_000_000_000)}b`;
+  if (abs >= 1_000_000) return `${sign}₦${trimDecimal(abs / 1_000_000)}m`;
   return formatNaira(amount);
 };
 

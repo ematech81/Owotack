@@ -12,7 +12,7 @@ import { useFocusEffect } from "expo-router";
 import { useReportStore } from "../../src/store/reportStore";
 import { useAuthStore } from "../../src/store/authStore";
 import { useTheme } from "../../src/hooks/useTheme";
-import { formatNaira } from "../../src/utils/formatters";
+import { formatNairaCompact as formatNaira } from "../../src/utils/formatters";
 import { ExpenseBreakdown, DayPoint, WeekPoint, PaymentBreakdown } from "../../src/services/reportService";
 import { getPlanById } from "../../src/config/plans";
 import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";

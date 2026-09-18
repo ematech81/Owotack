@@ -20,7 +20,7 @@ import { salesDb } from "../../src/database/salesDb";
 import { expenseDb } from "../../src/database/expenseDb";
 import { Sale, Expense, ApiResponse } from "../../src/types";
 import { useTheme } from "../../src/hooks/useTheme";
-import { formatNaira } from "../../src/utils/formatters";
+import { formatNairaCompact as formatNaira } from "../../src/utils/formatters";
 import { draftStorage } from "../../src/utils/draft";
 import api from "../../src/services/api";
 import { useUIStore } from "../../src/store/uiStore";

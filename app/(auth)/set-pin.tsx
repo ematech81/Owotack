@@ -7,6 +7,7 @@ import { AppStatusBar } from "../../src/components/common/AppStatusBar";
 import { PinInput } from "../../src/components/common/PinInput";
 import { useAuthStore } from "../../src/store/authStore";
 import { useTheme } from "../../src/hooks/useTheme";
+import { getErrorMessage } from "../../src/utils/errorMessages";
 
 const PIN_LENGTH = 4;
 
@@ -59,8 +60,7 @@ export default function SetPinScreen() {
       });
       // _layout.tsx handles navigation to /(tabs) when isAuthenticated becomes true
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Registration failed";
-      Alert.alert("Error", msg);
+      Alert.alert("Error", getErrorMessage(error, "Couldn't complete registration. Please try again."));
     }
   };
 

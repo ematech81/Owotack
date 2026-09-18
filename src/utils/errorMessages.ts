@@ -73,3 +73,15 @@ export function saveErrorMessage(err: unknown): string {
 export function parseErrorMessage(err: unknown): string {
   return isNetworkLike(err) ? ERRORS.parse.network : ERRORS.parse.generic;
 }
+
+// Extracts the backend's own user-facing message (every API error response carries
+// one — see errorHandler.ts) instead of axios's generic "Request failed with status
+// code XXX" text. Falls back to a friendly network message, then to `fallback`.
+export function getErrorMessage(err: unknown, fallback: string): string {
+  const response = (err as { response?: { data?: { message?: string } } } | undefined)?.response;
+  if (response?.data?.message) return response.data.message;
+  if (isNetworkLike(err)) {
+    return "Check your internet connection and try again.";
+  }
+  return fallback;
+}

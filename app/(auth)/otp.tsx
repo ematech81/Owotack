@@ -17,6 +17,7 @@ import { Button } from "../../src/components/common/Button";
 import { BackButton } from "../../src/components/common/BackButton";
 import { AppStatusBar } from "../../src/components/common/AppStatusBar";
 import { colors } from "../../src/constants/colors";
+import { getErrorMessage } from "../../src/utils/errorMessages";
 
 const OTP_LENGTH = 6;
 
@@ -80,8 +81,7 @@ export default function OTPScreen() {
         router.push({ pathname: "/(auth)/login", params: { phone } });
       }
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Invalid OTP";
-      Alert.alert("Wrong OTP", msg);
+      Alert.alert("Wrong OTP", getErrorMessage(error, "That code is invalid or has expired."));
       setOtp(Array(OTP_LENGTH).fill(""));
       inputRefs.current[0]?.focus();
     } finally {

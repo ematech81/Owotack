@@ -12,7 +12,7 @@ import { useCreditStore } from "../../src/store/creditStore";
 import { useAuthStore } from "../../src/store/authStore";
 import { ICredit, creditService } from "../../src/services/creditService";
 import { useTheme } from "../../src/hooks/useTheme";
-import { formatNaira, formatDate } from "../../src/utils/formatters";
+import { formatNairaCompact as formatNaira, formatDate } from "../../src/utils/formatters";
 import { ProductPickerInput } from "../../src/components/common/ProductPickerInput";
 import { CustomerPickerInput } from "../../src/components/common/CustomerPickerInput";
 import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";

@@ -6,6 +6,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useAuthStore } from "../src/store/authStore";
+import { useUIStore } from "../src/store/uiStore";
 import { initDatabase } from "../src/database/schema";
 import { AppStatusBar } from "../src/components/common/AppStatusBar";
 import { lightColors, darkColors } from "../src/constants/colors";
@@ -36,6 +37,7 @@ export default function RootLayout() {
     // slow/hung DB open on some Android phones never blocks the UI from loading.
     initialize().finally(() => SplashScreen.hideAsync());
     initDatabase().catch(() => {});
+    useUIStore.getState().loadAmountsHidden();
 
     // Handle referral deep link: owotrack://join?ref=CODE
     // Navigates unauthenticated users into the registration flow with referral code pre-filled

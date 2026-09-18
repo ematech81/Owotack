@@ -11,13 +11,15 @@ import { BackButton } from "../../src/components/common/BackButton";
 import { AppStatusBar } from "../../src/components/common/AppStatusBar";
 import { PinInput } from "../../src/components/common/PinInput";
 import { useTheme } from "../../src/hooks/useTheme";
+import { getErrorMessage } from "../../src/utils/errorMessages";
 
 export default function LoginScreen() {
   const colors = useTheme();
   const { phone: prefillPhone } = useLocalSearchParams<{ phone?: string }>();
+  // Always show the full form — phone pre-filled but editable, so a user
+  // running multiple businesses can switch accounts without a separate flow.
   const [phone, setPhone] = useState(prefillPhone || "");
   const [pin, setPin] = useState("");
-  const [step, setStep] = useState<"phone" | "pin">(prefillPhone ? "pin" : "phone");
   const { login, isLoading, resetApp, lastPhone } = useAuthStore();
 
   // Pre-fill phone from the store (already read from SecureStore during initialize())
@@ -40,28 +42,22 @@ export default function LoginScreen() {
   };
 
   const handleContinue = async () => {
-    if (step === "phone") {
-      if (!phone.match(/^(\+234|0)[789][01]\d{8}$/)) {
-        Alert.alert("", "Enter a valid Nigerian phone number");
-        return;
-      }
-      const normalized = phone.startsWith("0") ? `+234${phone.slice(1)}` : phone;
-      setPhone(normalized);
-      setStep("pin");
+    if (!phone.match(/^(\+234|0)[789][01]\d{8}$/)) {
+      Alert.alert("", "Enter a valid Nigerian phone number");
       return;
     }
-
     if (pin.length < 4) {
       Alert.alert("", "Enter your 4-digit PIN");
       return;
     }
 
+    const normalized = phone.startsWith("0") ? `+234${phone.slice(1)}` : phone;
+
     try {
-      await login(phone, pin);
+      await login(normalized, pin);
       // _layout.tsx handles navigation to /(tabs) when isAuthenticated becomes true
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Login failed";
-      Alert.alert("Login Failed", msg);
+      Alert.alert("Login Failed", getErrorMessage(error, "You entered a wrong number or PIN. Please try again."));
       setPin("");
     }
   };
@@ -78,38 +74,35 @@ export default function LoginScreen() {
           <View style={styles.header}>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>
-              {step === "phone" ? "Enter your phone number" : "Enter your PIN to login"}
+              Confirm your phone number and enter your PIN to login
             </Text>
           </View>
 
-          {step === "phone" ? (
-            <TextInput
-              style={styles.phoneInput}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="0801 234 5678"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="phone-pad"
-              maxLength={14}
-              autoFocus
-            />
-          ) : (
-            <View style={styles.pinWrap}>
-              <PinInput length={4} value={pin} onChange={setPin} autoFocus />
-            </View>
-          )}
+          <Text style={styles.label}>Phone Number</Text>
+          <TextInput
+            style={styles.phoneInput}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="0801 234 5678"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="phone-pad"
+            maxLength={14}
+          />
 
-          {step === "pin" && (
-            <TouchableOpacity
-              onPress={() => router.push("/(auth)/forgot-pin")}
-              style={styles.forgot}
-            >
-              <Text style={styles.forgotText}>Forgot your PIN?</Text>
-            </TouchableOpacity>
-          )}
+          <Text style={styles.label}>PIN</Text>
+          <View style={styles.pinWrap}>
+            <PinInput length={4} value={pin} onChange={setPin} />
+          </View>
+
+          <TouchableOpacity
+            onPress={() => router.push("/(auth)/forgot-pin")}
+            style={styles.forgot}
+          >
+            <Text style={styles.forgotText}>Forgot your PIN?</Text>
+          </TouchableOpacity>
 
           <Button
-            title={step === "phone" ? "Continue" : "Login"}
+            title="Login"
             onPress={handleContinue}
             loading={isLoading}
             style={styles.btn}
@@ -137,13 +130,14 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.background },
     container: { flex: 1, padding: 24, paddingTop: 16 },
-    header: { marginBottom: 40 },
+    header: { marginBottom: 32 },
     title: { fontSize: 28, fontWeight: "700", color: colors.textPrimary, marginBottom: 8 },
     subtitle: { fontSize: 16, color: colors.textSecondary },
+    label: { fontSize: 13, fontWeight: "600", color: colors.textSecondary, marginBottom: 8 },
     phoneInput: {
       backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
       borderRadius: 12, height: 52, paddingHorizontal: 16, fontSize: 18,
-      color: colors.textPrimary, marginBottom: 24,
+      color: colors.textPrimary, marginBottom: 20,
     },
     pinWrap: { marginBottom: 16 },
     forgot: { alignItems: "center", marginBottom: 32 },

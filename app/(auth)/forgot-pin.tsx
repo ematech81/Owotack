@@ -8,6 +8,7 @@ import { Button } from "../../src/components/common/Button";
 import { BackButton } from "../../src/components/common/BackButton";
 import { AppStatusBar } from "../../src/components/common/AppStatusBar";
 import { colors } from "../../src/constants/colors";
+import { getErrorMessage } from "../../src/utils/errorMessages";
 
 export default function ForgotPinScreen() {
   const [phone, setPhone] = useState("");
@@ -37,8 +38,7 @@ export default function ForgotPinScreen() {
         },
       ]);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to send OTP";
-      Alert.alert("Error", msg);
+      Alert.alert("Error", getErrorMessage(error, "Couldn't send the OTP. Please try again."));
     } finally {
       setLoading(false);
     }

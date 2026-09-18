@@ -18,7 +18,8 @@ import { UpgradePromptModal } from "../../src/components/common/UpgradePromptMod
 import { useStockStore } from "../../src/store/stockStore";
 import { IStockItem } from "../../src/services/stockService";
 import { useTheme } from "../../src/hooks/useTheme";
-import { formatNaira, formatDate } from "../../src/utils/formatters";
+import { formatNaira, formatNairaCompact, formatDate } from "../../src/utils/formatters";
+import { AmountVisibilityToggle } from "../../src/components/common/AmountVisibilityToggle";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -710,7 +711,7 @@ function HeroStatsCard({ stats, colors }: {
       <View style={heroS.topRow}>
         <View>
           <Text style={heroS.totalLabel}>Total Stock Value</Text>
-          <Text style={heroS.totalAmount}>{formatNaira(stats?.totalValue ?? 0)}</Text>
+          <Text style={heroS.totalAmount}>{formatNairaCompact(stats?.totalValue ?? 0)}</Text>
         </View>
         <View style={heroS.iconWrap}>
           <Ionicons name="storefront-outline" size={28} color="rgba(255,255,255,0.9)" />
@@ -901,12 +902,19 @@ export default function StockScreen() {
             </View>
           </View>
 
-          <TouchableOpacity
-            onPress={() => loadItems()}
-            style={[screenS.refreshBtn, { backgroundColor: colors.surface }, D.shadow.soft]}
-          >
-            <Ionicons name="refresh-outline" size={18} color={colors.primary} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <AmountVisibilityToggle
+              color={colors.primary}
+              backgroundColor={colors.surface}
+              style={D.shadow.soft}
+            />
+            <TouchableOpacity
+              onPress={() => loadItems()}
+              style={[screenS.refreshBtn, { backgroundColor: colors.surface }, D.shadow.soft]}
+            >
+              <Ionicons name="refresh-outline" size={18} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 

@@ -24,7 +24,7 @@ import { useAuthStore } from "../../src/store/authStore";
 import { useTheme } from "../../src/hooks/useTheme";
 import { AppStatusBar } from "../../src/components/common/AppStatusBar";
 import { getPlanById } from "../../src/config/plans";
-import { formatNaira } from "../../src/utils/formatters";
+import { formatNairaCompact as formatNaira } from "../../src/utils/formatters";
 import { authService } from "../../src/services/authService";
 import api from "../../src/services/api";
 import { ApiResponse, User } from "../../src/types";

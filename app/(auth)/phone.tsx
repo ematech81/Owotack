@@ -10,6 +10,7 @@ import { Input } from "../../src/components/common/Input";
 import { AppStatusBar } from "../../src/components/common/AppStatusBar";
 import { authService } from "../../src/services/authService";
 import { colors } from "../../src/constants/colors";
+import { getErrorMessage } from "../../src/utils/errorMessages";
 
 const schema = z.object({
   phone: z
@@ -52,8 +53,7 @@ export default function PhoneScreen() {
         },
       });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to send OTP";
-      Alert.alert("Error", msg);
+      Alert.alert("Error", getErrorMessage(error, "Couldn't send the OTP. Please try again."));
     } finally {
       setLoading(false);
     }

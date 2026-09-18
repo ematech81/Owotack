@@ -13,7 +13,7 @@ import { useExpenseStore } from "../../src/store/expenseStore";
 import { expenseDb } from "../../src/database/expenseDb";
 import { Expense, ApiResponse } from "../../src/types";
 import { useTheme } from "../../src/hooks/useTheme";
-import { formatNaira } from "../../src/utils/formatters";
+import { formatNairaCompact as formatNaira } from "../../src/utils/formatters";
 import { EXPENSE_CATEGORIES } from "../../src/constants/categories";
 import { VoiceInput } from "../../src/components/common/VoiceInput";
 import { OfflineBanner } from "../../src/components/common/OfflineBanner";
