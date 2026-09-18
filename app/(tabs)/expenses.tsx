@@ -129,6 +129,8 @@ const cardStyles = StyleSheet.create({
 export default function ExpensesScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
+  // Subscribe so this screen re-renders when the privacy toggle flips.
+  useUIStore((s) => s.amountsHidden);
   const { addExpense, parseText } = useExpenseStore();
   const planId = user?.subscription?.plan ?? "free";
 

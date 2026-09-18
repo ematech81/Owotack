@@ -3,6 +3,7 @@ import { AppState, AppStateStatus } from "react-native";
 import { useAuthStore } from "../store/authStore";
 import { useUIStore } from "../store/uiStore";
 import { syncService } from "../services/syncService";
+import { registerReconnectHandler } from "../services/api";
 
 export function useOfflineSync() {
   const userId = useAuthStore((s) => s.user?._id);
@@ -42,6 +43,11 @@ export function useOfflineSync() {
     const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
       if (state === "active") run();
     });
+
+    // A sale/expense's initial save-time sync can fail on a brief network blip
+    // (common on Nigerian mobile networks) and would otherwise sit "pending" until
+    // the user backgrounds and reopens the app. Retry the moment we're back online.
+    registerReconnectHandler(() => run());
 
     return () => sub.remove();
   }, [isAuthenticated]);

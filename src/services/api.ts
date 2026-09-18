@@ -12,6 +12,14 @@ type AuthFailHandler = () => void;
 let _onAuthFail: AuthFailHandler | null = null;
 export const registerAuthFailHandler = (fn: AuthFailHandler) => { _onAuthFail = fn; };
 
+// Callback registered by useOfflineSync — fires the moment the app comes back online,
+// so a sale/expense that failed to sync (e.g. a brief network blip right after saving)
+// gets retried immediately instead of waiting for the next app foreground event.
+type ReconnectHandler = () => void;
+let _onReconnect: ReconnectHandler | null = null;
+export const registerReconnectHandler = (fn: ReconnectHandler) => { _onReconnect = fn; };
+let _wasOffline = false;
+
 // Mutex: only one refresh in flight at a time; queue other 401s to replay after
 let _isRefreshing = false;
 let _refreshQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
@@ -38,15 +46,24 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (response: AxiosResponse) => {
     // Successful response confirms we're online
+    if (_wasOffline) {
+      _wasOffline = false;
+      _onReconnect?.();
+    }
     useUIStore.getState().setOnline(true);
     return response;
   },
   async (error) => {
     // No response object = network is unreachable (offline, DNS failure, timeout)
     if (!error.response) {
+      _wasOffline = true;
       useUIStore.getState().setOnline(false);
     } else {
       // Server responded — we are online even if it's an error status
+      if (_wasOffline) {
+        _wasOffline = false;
+        _onReconnect?.();
+      }
       useUIStore.getState().setOnline(true);
     }
     const originalRequest = error.config;

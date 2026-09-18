@@ -17,6 +17,7 @@ import { ProductPickerInput } from "../../src/components/common/ProductPickerInp
 import { CustomerPickerInput } from "../../src/components/common/CustomerPickerInput";
 import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";
 import { checkWhatsAppLimit, recordWhatsAppUsage, checkActiveCreditsLimit } from "../../src/utils/usageLimits";
+import { useUIStore } from "../../src/store/uiStore";
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -53,6 +54,8 @@ function statusConfig(status: ICredit["status"]) {
 export default function CreditsScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
+  // Subscribe so this screen re-renders when the privacy toggle flips.
+  useUIStore((s) => s.amountsHidden);
   const { credits, stats, isLoading, activeFilter, loadCredits, loadStats, setFilter } = useCreditStore();
   const [showAdd, setShowAdd] = useState(false);
   const [selectedCredit, setSelectedCredit] = useState<ICredit | null>(null);

@@ -16,6 +16,7 @@ import { formatNairaCompact as formatNaira } from "../../src/utils/formatters";
 import { ExpenseBreakdown, DayPoint, WeekPoint, PaymentBreakdown } from "../../src/services/reportService";
 import { getPlanById } from "../../src/config/plans";
 import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";
+import { useUIStore } from "../../src/store/uiStore";
 
 type Period = "today" | "week" | "month";
 
@@ -376,6 +377,8 @@ function canAccess(period: Period, reportsAccess: "today" | "weekly" | "full"): 
 export default function ReportsScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
+  // Subscribe so this screen re-renders when the privacy toggle flips.
+  useUIStore((s) => s.amountsHidden);
   const {
     period, setPeriod,
     daily, weekly, monthly,

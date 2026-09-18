@@ -998,6 +998,8 @@ function getDateRange(preset: DatePreset): { start: string; end: string } | null
 export default function LedgerScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
+  // Subscribe so this screen re-renders when the privacy toggle flips.
+  useUIStore((s) => s.amountsHidden);
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [datePreset, setDatePreset] = useState<DatePreset>("all");

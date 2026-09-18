@@ -28,6 +28,7 @@ import { saveCustomerName } from "../../src/utils/customers";
 import { checkSalesLimit, checkVoiceAccess, recordSaleUsage } from "../../src/utils/usageLimits";
 import { UpgradePromptModal, UpgradeFeature } from "../../src/components/common/UpgradePromptModal";
 import { SaleItem } from "../../src/types";
+import { useUIStore } from "../../src/store/uiStore";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -1112,6 +1113,8 @@ const actionS = StyleSheet.create({
 
 export default function AddSaleScreen() {
   const { user } = useAuthStore();
+  // Subscribe so this screen re-renders when the privacy toggle flips.
+  useUIStore((s) => s.amountsHidden);
   const { addSale, parseText } = useSalesStore();
   const { items: stockItems } = useStockStore();
 

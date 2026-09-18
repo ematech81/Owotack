@@ -28,6 +28,7 @@ import { formatNairaCompact as formatNaira } from "../../src/utils/formatters";
 import { authService } from "../../src/services/authService";
 import api from "../../src/services/api";
 import { ApiResponse, User } from "../../src/types";
+import { useUIStore } from "../../src/store/uiStore";
 
 const IS_DEV = process.env.NODE_ENV === "development" || __DEV__;
 const USER_CACHE_KEY = "cached_user";
@@ -260,6 +261,8 @@ function ModalField({
 export default function ProfileScreen() {
   const router = useRouter();
   const colors = useTheme();
+  // Subscribe so this screen re-renders when the privacy toggle flips.
+  useUIStore((s) => s.amountsHidden);
   const { user, logout, resetApp, setUser, autoLoginEnabled, setAutoLogin } = useAuthStore();
 
   const planId = user?.subscription?.plan ?? "free";

@@ -80,6 +80,9 @@ function canAccessPeriod(period: Period, reportsAccess: "today" | "weekly" | "fu
 export default function DashboardScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
+  // Subscribe so this screen re-renders when the privacy toggle flips —
+  // formatNaira/formatNairaCompact read the flag internally but don't force a re-render on their own.
+  useUIStore((s) => s.amountsHidden);
   const {
     todaySales,
     loadToday: loadSales,

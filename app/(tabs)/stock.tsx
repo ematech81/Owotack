@@ -20,6 +20,7 @@ import { IStockItem } from "../../src/services/stockService";
 import { useTheme } from "../../src/hooks/useTheme";
 import { formatNaira, formatNairaCompact, formatDate } from "../../src/utils/formatters";
 import { AmountVisibilityToggle } from "../../src/components/common/AmountVisibilityToggle";
+import { useUIStore } from "../../src/store/uiStore";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -860,6 +861,8 @@ const searchS = StyleSheet.create({
 export default function StockScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
+  // Subscribe so this screen re-renders when the privacy toggle flips.
+  useUIStore((s) => s.amountsHidden);
   const { items, stats, isLoading, loadItems, search, setSearch } = useStockStore();
   const [view, setView] = useState<"list" | "add">("list");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
