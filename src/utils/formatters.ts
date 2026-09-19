@@ -24,13 +24,13 @@ const trimDecimal = (n: number): string => {
 };
 
 // Full comma-separated figures under 1 million (500,000 / 999,000), compact
-// "1m"/"1.8m"/"1.3b" notation at 1 million and above.
+// "1M"/"1.8M"/"1.3B" notation at 1 million and above.
 export const formatNairaCompact = (amount: number): string => {
   if (useUIStore.getState().amountsHidden) return MASKED;
   const sign = amount < 0 ? "-" : "";
   const abs = Math.abs(amount);
-  if (abs >= 1_000_000_000) return `${sign}₦${trimDecimal(abs / 1_000_000_000)}b`;
-  if (abs >= 1_000_000) return `${sign}₦${trimDecimal(abs / 1_000_000)}m`;
+  if (abs >= 1_000_000_000) return `${sign}₦${trimDecimal(abs / 1_000_000_000)}B`;
+  if (abs >= 1_000_000) return `${sign}₦${trimDecimal(abs / 1_000_000)}M`;
   return formatNaira(amount);
 };
 

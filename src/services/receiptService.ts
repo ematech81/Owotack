@@ -50,7 +50,7 @@ function dotGrid(): string {
 
 function scallops(): string {
   return Array.from({ length: 18 })
-    .map(() => `<div style="width:20px;height:20px;border-radius:50%;background:#f5f5f5;flex-shrink:0;"></div>`)
+    .map(() => `<div style="width:20px;height:20px;border-radius:50%;background:#fff;flex-shrink:0;"></div>`)
     .join("");
 }
 
@@ -121,9 +121,9 @@ function buildReceiptHTML(sale: Sale, businessName: string, logoSrc: string): st
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; background: #f0f4f0; padding: 24px 12px; }
-    .page { max-width: 400px; margin: 0 auto; }
-    .receipt { background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 16px 48px rgba(0,0,0,0.18); }
+    body { font-family: Arial, Helvetica, sans-serif; background: #fff; }
+    .page { width: 100%; }
+    .receipt { background: #fff; }
     table { width: 100%; border-collapse: collapse; }
     .dash-row { display: flex; gap: 4px; padding: 2px 20px; }
     .dash { flex: 1; height: 1.5px; background: #e2e8f0; border-radius: 1px; opacity: 0.7; }
@@ -149,7 +149,7 @@ function buildReceiptHTML(sale: Sale, businessName: string, logoSrc: string): st
     </div>
 
     <!-- business name -->
-    <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:-0.3px;margin-bottom:10px;">${businessName}</div>
+    <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:-0.3px;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px;margin-left:auto;margin-right:auto;">${businessName}</div>
 
     <!-- receipt pill -->
     <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.15);padding:5px 14px;border-radius:999px;margin-bottom:10px;">
@@ -167,7 +167,7 @@ function buildReceiptHTML(sale: Sale, businessName: string, logoSrc: string): st
   </div>
 
   <!-- ── SCALLOPED EDGE (top) ────────────────────────────────────────────────── -->
-  <div style="display:flex;justify-content:space-between;padding:0 4px;margin-top:-11px;overflow:hidden;background:#f0f4f0;">
+  <div style="display:flex;justify-content:space-between;padding:0 4px;margin-top:-11px;overflow:hidden;background:#fff;">
     ${scallops()}
   </div>
 
@@ -249,7 +249,7 @@ function buildReceiptHTML(sale: Sale, businessName: string, logoSrc: string): st
   </div>
 
   <!-- ── SCALLOPED EDGE (bottom) ───────────────────────────────────────────── -->
-  <div style="display:flex;justify-content:space-between;padding:0 4px;overflow:hidden;background:#f0f4f0;">
+  <div style="display:flex;justify-content:space-between;padding:0 4px;overflow:hidden;background:#fff;">
     ${scallops()}
   </div>
 
@@ -272,6 +272,40 @@ function buildReceiptHTML(sale: Sale, businessName: string, logoSrc: string): st
 </html>`;
 }
 
+// Computes the PDF page height in points to fit this receipt's actual content —
+// no more, no less — instead of a fixed canvas. That's what was causing the
+// visible "white background": a short receipt left a big blank page below it,
+// while a long one (many items) would have been clipped off the bottom of a
+// fixed-height page. Every constant here matches an exact padding/font-size in
+// buildReceiptHTML above, so this tracks the real layout rather than guessing.
+function estimateReceiptHeight(sale: Sale): number {
+  const discountAmount = sale.discountAmount ?? 0;
+  const taxAmount = sale.taxAmount ?? 0;
+  const hasAdjustment = discountAmount > 0 || taxAmount > 0;
+
+  const HEADER = 260;        // logo ring + business name + pill + sync badge + padding
+  const SCALLOP = 10;        // x2 (top + bottom)
+  const META_BAR = 68;
+  const DASH = 10;           // x2 (after meta, after customer)
+  const CUSTOMER = 60;
+  const ITEMS_HEADER = 27;
+  const ITEM_ROW = 56;       // per line item — product name + unit line + padding
+  const ADJUSTMENTS_BASE = 40;  // container padding + subtotal row
+  const ADJUSTMENT_ROW = 36;    // discount row / tax row, each
+  const GRAND_TOTAL = 118;
+  const FOOTER = 108;
+  const SAFETY_MARGIN = 50;  // small buffer so a slightly-off estimate trims blank space, never content
+
+  let height = HEADER + SCALLOP * 2 + META_BAR + DASH * 2 + CUSTOMER + ITEMS_HEADER + GRAND_TOTAL + FOOTER + SAFETY_MARGIN;
+  height += sale.items.length * ITEM_ROW;
+  if (hasAdjustment) {
+    height += ADJUSTMENTS_BASE;
+    if (discountAmount > 0) height += ADJUSTMENT_ROW;
+    if (taxAmount > 0) height += ADJUSTMENT_ROW;
+  }
+  return Math.round(height);
+}
+
 function getFileName(sale: Sale): string {
   return `Invoice_${sale.invoiceNumber ?? sale.localId.slice(-6).toUpperCase()}.pdf`;
 }
@@ -281,7 +315,7 @@ export const receiptService = {
     const businessName = user.businessName || user.name;
     const logoSrc = await getLogoBase64();
     const html = buildReceiptHTML(sale, businessName, logoSrc);
-    const { uri } = await Print.printToFileAsync({ html, width: 428, height: 926 });
+    const { uri } = await Print.printToFileAsync({ html, width: 428, height: estimateReceiptHeight(sale) });
     const canShare = await Sharing.isAvailableAsync();
     if (!canShare) throw new Error("Sharing is not available on this device.");
     await Sharing.shareAsync(uri, {
@@ -295,7 +329,7 @@ export const receiptService = {
     const businessName = user.businessName || user.name;
     const logoSrc = await getLogoBase64();
     const html = buildReceiptHTML(sale, businessName, logoSrc);
-    const { uri } = await Print.printToFileAsync({ html, width: 428, height: 926 });
+    const { uri } = await Print.printToFileAsync({ html, width: 428, height: estimateReceiptHeight(sale) });
 
     const fileName = getFileName(sale);
     const destPath = `${FileSystem.documentDirectory}${fileName}`;

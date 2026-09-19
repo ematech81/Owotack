@@ -75,6 +75,7 @@ function canAccessPeriod(period: Period, reportsAccess: "today" | "weekly" | "fu
   return false;
 }
 
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
@@ -311,21 +312,22 @@ export default function DashboardScreen() {
           </View>
         ))}
 
-        {/* ── Hero Revenue Card — matches Ledger SummaryCard exactly ── */}
+        {/* ── Hero Revenue Card ── */}
         <LinearGradient
-          colors={netProfit >= 0 ? ["#1a7a4a", "#22c55e"] : ["#991b1b", "#ef4444"]}
+          colors={netProfit >= 0 ? ["#065f46", "#022c22"] : ["#7f1d1d", "#1c0a0a"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroCard}
         >
-          {/* Decorative circles */}
+          {/* Decorative glow circles */}
           <View style={styles.decCircle1} />
           <View style={styles.decCircle2} />
 
-          {/* Top row: label + amount (left) · period toggle (right) */}
+          {/* Top row: label (left) · period toggle (right) — kept to just these two,
+              so the 3-tab switcher always has the room it needs */}
           <View style={styles.heroTopRow}>
             <View style={{ flex: 1, marginRight: 12 }}>
-              <Text style={styles.heroCardLabel}>{CARD_LABEL[period]}</Text>
+              <Text style={styles.heroCardLabel} numberOfLines={1}>{CARD_LABEL[period]}</Text>
               <Text style={styles.heroAmount} numberOfLines={1} adjustsFontSizeToFit>
                 {formatNairaCompact(totalSales)}
               </Text>
@@ -361,40 +363,34 @@ export default function DashboardScreen() {
           {/* Divider */}
           <View style={styles.heroDivider} />
 
-          {/* Stats row — NET PROFIT taps to reports, EXPENSES taps to expenses screen */}
+          {/* Twin stat cards — NET PROFIT taps to reports, EXPENSES taps to expenses screen */}
           <View style={styles.statsRow}>
             <TouchableOpacity
-              style={styles.stat}
+              style={styles.statBox}
               onPress={() => router.push("/(tabs)/reports" as any)}
               activeOpacity={0.7}
             >
-              <View style={styles.statIconWrap}>
-                <Ionicons name="arrow-up" size={12} color="#fff" />
-              </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.statLabel}>
-                  {period === "today" ? "TODAY'S PROFIT" : "NET PROFIT"}
-                </Text>
+                <Text style={styles.statLabel}>NET PROFIT</Text>
                 <Text style={styles.statValue}>{formatNairaCompact(netProfit)}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.5)" />
+              <View style={styles.statIconWrap}>
+                <Ionicons name="arrow-up" size={12} color="#6EE7B7" />
+              </View>
             </TouchableOpacity>
 
-            <View style={styles.statDivider} />
-
             <TouchableOpacity
-              style={styles.stat}
+              style={styles.statBox}
               onPress={() => router.push("/(tabs)/expenses" as any)}
               activeOpacity={0.7}
             >
-              <View style={[styles.statIconWrap, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
-                <Ionicons name="arrow-down" size={12} color="#fff" />
-              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.statLabel}>EXPENSES</Text>
                 <Text style={[styles.statValue, { color: "#FCA5A5" }]}>{formatNairaCompact(totalExpenses)}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.5)" />
+              <View style={[styles.statIconWrap, { backgroundColor: "rgba(252,165,165,0.15)" }]}>
+                <Ionicons name="arrow-down" size={12} color="#FCA5A5" />
+              </View>
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -475,43 +471,46 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
-        {/* ── AI Business Tip ── */}
-        <TouchableOpacity
+        {/* ── AI Business Advisor ── */}
+        <LinearGradient
+          colors={["#1e1b4b", "#0f172a", "#022c22"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.tipCard}
-          activeOpacity={0.88}
-          onPress={() => router.push("/(tabs)/advisor")}
         >
           <View style={styles.tipHeaderRow}>
             <View style={styles.tipIconWrap}>
-              <Text style={{ fontSize: 15 }}>💡</Text>
+              <Ionicons name="sparkles" size={13} color="#A5B4FC" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.tipTitle}>AI Business Tip</Text>
+              <Text style={styles.tipTitle}>AI Business Advisor</Text>
               <Text style={styles.tipSubtitle}>Powered by your data</Text>
             </View>
             <View style={styles.tipBadge}>
-              <Ionicons name="sparkles" size={10} color={colors.primary} />
-              <Text style={styles.tipBadgeText}>AI</Text>
+              <Text style={styles.tipBadgeText}>Smart Tip</Text>
             </View>
           </View>
 
-          {aiTipLoading || aiTip === null ? (
-            <>
-              <View style={[styles.shimmerLine, { width: "100%" }]} />
-              <View style={[styles.shimmerLine, { width: "75%", marginTop: 6 }]} />
-            </>
-          ) : (
-            <View style={styles.tipTextWrap}>
-              <View style={styles.tipAccentBar} />
+          <View style={styles.tipTextWrap}>
+            {aiTipLoading || aiTip === null ? (
+              <>
+                <View style={[styles.shimmerLine, { width: "100%" }]} />
+                <View style={[styles.shimmerLine, { width: "75%", marginTop: 6 }]} />
+              </>
+            ) : (
               <Text style={styles.tipText}>{aiTip}</Text>
-            </View>
-          )}
-
-          <View style={styles.tipFooter}>
-            <Text style={styles.tipCta}>Tap to chat with your AI coach</Text>
-            <Ionicons name="arrow-forward" size={12} color={colors.primary} />
+            )}
           </View>
-        </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.tipCtaBtn}
+            activeOpacity={0.85}
+            onPress={() => router.push("/(tabs)/advisor")}
+          >
+            <Ionicons name="chatbubble-ellipses-outline" size={14} color="#0F172A" />
+            <Text style={styles.tipCtaBtnText}>Chat with AI Advisor</Text>
+          </TouchableOpacity>
+        </LinearGradient>
 
         {/* ── Recent Ledger ── */}
         <View style={styles.ledgerHeader}>
@@ -789,10 +788,10 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
     },
     heroTopRow: {
       flexDirection: "row", justifyContent: "space-between",
-      alignItems: "flex-start", marginBottom: 16,
+      alignItems: "center", marginBottom: 16,
     },
-    heroCardLabel: { fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginBottom: 4 },
-    heroAmount: { fontSize: 28, color: "#fff", fontWeight: "900", letterSpacing: -0.5 },
+    heroCardLabel: { fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "700", letterSpacing: 0.5, marginBottom: 6 },
+    heroAmount: { fontSize: 36, color: "#fff", fontWeight: "900", letterSpacing: -0.5 },
     periodTabs: {
       flexDirection: "row", backgroundColor: "rgba(0,0,0,0.2)",
       borderRadius: 10, padding: 3,
@@ -805,18 +804,20 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
     periodTabText: { fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.5)" },
     periodTabTextActive: { color: "#fff" },
     heroDivider: { height: 1, backgroundColor: "rgba(255,255,255,0.2)", marginBottom: 16 },
-    statsRow: { flexDirection: "row", alignItems: "center" },
-    stat: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
+    statsRow: { flexDirection: "row", gap: 10 },
+    statBox: {
+      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      backgroundColor: "rgba(255,255,255,0.06)",
+      borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+      borderRadius: 16, padding: 10,
+    },
     statIconWrap: {
-      width: 28, height: 28, borderRadius: 999,
-      backgroundColor: "rgba(255,255,255,0.25)",
+      width: 30, height: 30, borderRadius: 14,
+      backgroundColor: "rgba(110,231,183,0.15)",
       alignItems: "center", justifyContent: "center",
     },
-    statLabel: { fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: "600" },
-    statValue: { fontSize: 14, color: "#fff", fontWeight: "800" },
-    statDivider: {
-      width: 1, height: 32, backgroundColor: "rgba(255,255,255,0.2)", marginHorizontal: 12,
-    },
+    statLabel: { fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "700", letterSpacing: 0.3 },
+    statValue: { fontSize: 14, color: "#fff", fontWeight: "800", marginTop: 2 },
 
     // ── Quick Actions ──
     sectionTitle: {
@@ -860,46 +861,45 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
     alertTitle: { fontSize: 14, fontWeight: "800", color: "#DC2626", marginBottom: 3 },
     alertSub: { fontSize: 13, color: "#EF4444" },
 
-    // ── AI Tip ──
+    // ── AI Advisor ──
     tipCard: {
-      backgroundColor: "#F0FDF4",
-      borderRadius: 20, padding: 18, marginBottom: 28,
-      borderWidth: 1.5, borderColor: colors.primary + "30",
+      borderRadius: 24, padding: 16, marginBottom: 28,
+      borderWidth: 1, borderColor: "rgba(129,140,248,0.25)",
       ...Platform.select({
-        ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12 },
-        android: { elevation: 4 },
+        ios: { shadowColor: "#1e1b4b", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16 },
+        android: { elevation: 6 },
       }),
     },
     tipHeaderRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
     tipIconWrap: {
-      width: 36, height: 36, borderRadius: 10,
-      backgroundColor: colors.primary + "18",
+      width: 30, height: 30, borderRadius: 9,
+      backgroundColor: "rgba(129,140,248,0.15)",
       alignItems: "center", justifyContent: "center",
-      borderWidth: 1, borderColor: colors.primary + "30",
+      borderWidth: 1, borderColor: "rgba(129,140,248,0.3)",
     },
-    tipTitle: { fontSize: 13, fontWeight: "800", color: colors.primary },
-    tipSubtitle: { fontSize: 11, color: colors.primary + "80", marginTop: 1 },
+    tipTitle: { fontSize: 13, fontWeight: "800", color: "#fff" },
+    tipSubtitle: { fontSize: 10.5, color: "rgba(199,210,254,0.7)", marginTop: 1 },
     tipBadge: {
-      flexDirection: "row", alignItems: "center", gap: 3,
-      backgroundColor: colors.primary + "18",
-      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
-      borderWidth: 1, borderColor: colors.primary + "30",
+      backgroundColor: "rgba(129,140,248,0.2)",
+      paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999,
+      borderWidth: 1, borderColor: "rgba(129,140,248,0.35)",
     },
-    tipBadgeText: { fontSize: 10, fontWeight: "800", color: colors.primary },
+    tipBadgeText: { fontSize: 10, fontWeight: "800", color: "#A5B4FC" },
     tipTextWrap: {
-      flexDirection: "row", gap: 10, marginBottom: 14, alignItems: "flex-start",
+      backgroundColor: "rgba(255,255,255,0.05)",
+      borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
+      borderRadius: 16, padding: 12, marginBottom: 12,
     },
-    tipAccentBar: { width: 3, borderRadius: 2, backgroundColor: colors.primary, alignSelf: "stretch" },
     tipText: {
-      flex: 1, fontSize: 14, fontWeight: "600", fontStyle: "italic",
-      color: "#064E3B", lineHeight: 22, letterSpacing: 0.1,
+      fontSize: 13, fontWeight: "500",
+      color: "#E2E8F0", lineHeight: 20,
     },
-    shimmerLine: { height: 12, borderRadius: 6, backgroundColor: colors.primary + "20", marginBottom: 4 },
-    tipFooter: {
-      flexDirection: "row", alignItems: "center", gap: 4,
-      paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.primary + "20",
+    shimmerLine: { height: 12, borderRadius: 6, backgroundColor: "rgba(255,255,255,0.1)", marginBottom: 4 },
+    tipCtaBtn: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
+      backgroundColor: "#fff", paddingVertical: 11, borderRadius: 14,
     },
-    tipCta: { fontSize: 11, fontWeight: "700", color: colors.primary },
+    tipCtaBtnText: { fontSize: 13, fontWeight: "800", color: "#0F172A" },
 
     // ── Ledger ──
     ledgerHeader: {

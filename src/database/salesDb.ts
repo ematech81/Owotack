@@ -207,12 +207,20 @@ export const salesDb = {
     return rowsToSales(rows);
   },
 
-  async getRecent(userId: string, limit = 100): Promise<Sale[]> {
+  // `before` (a created_at cursor) pages backward through history so "All time"
+  // isn't hard-capped at `limit` — pass the oldest created_at seen so far to fetch
+  // the next page.
+  async getRecent(userId: string, limit = 100, before?: string): Promise<Sale[]> {
     const db = await getDb();
-    const rows = await db.getAllAsync<LocalSaleRow>(
-      "SELECT * FROM sales WHERE user_id = ? AND is_deleted = 0 ORDER BY created_at DESC LIMIT ?",
-      [userId, limit]
-    );
+    const rows = before
+      ? await db.getAllAsync<LocalSaleRow>(
+          "SELECT * FROM sales WHERE user_id = ? AND is_deleted = 0 AND created_at < ? ORDER BY created_at DESC LIMIT ?",
+          [userId, before, limit]
+        )
+      : await db.getAllAsync<LocalSaleRow>(
+          "SELECT * FROM sales WHERE user_id = ? AND is_deleted = 0 ORDER BY created_at DESC LIMIT ?",
+          [userId, limit]
+        );
     return rowsToSales(rows);
   },
 

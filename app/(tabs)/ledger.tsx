@@ -8,7 +8,7 @@ import {
   View, Text, StyleSheet, TextInput,
   FlatList, TouchableOpacity, RefreshControl,
   Modal, Pressable, ScrollView, Platform,
-  Animated, Dimensions,
+  Animated, Dimensions, ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -24,6 +24,7 @@ import { formatNairaCompact as formatNaira } from "../../src/utils/formatters";
 import { draftStorage } from "../../src/utils/draft";
 import api from "../../src/services/api";
 import { useUIStore } from "../../src/store/uiStore";
+import { AmountVisibilityToggle } from "../../src/components/common/AmountVisibilityToggle";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -563,7 +564,8 @@ function TransactionRow({ item, colors }: TransactionRowProps) {
 const rowStyles = StyleSheet.create({
   card: {
     borderRadius: DESIGN.radius.lg,
-    marginBottom: 10,
+    marginHorizontal: 16,
+    marginBottom: 12,
     overflow: "hidden",
   },
   accentBar: {
@@ -578,53 +580,53 @@ const rowStyles = StyleSheet.create({
   inner: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
-    gap: 12,
+    padding: 18,
+    gap: 14,
   },
   iconWrap: {
-    width: 44, height: 44,
+    width: 52, height: 52,
     borderRadius: DESIGN.radius.md,
     alignItems: "center",
     justifyContent: "center",
   },
-  content: { flex: 1, gap: 3 },
+  content: { flex: 1, gap: 4 },
   topRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   tag: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: DESIGN.radius.sm,
   },
-  tagText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.8 },
+  tagText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.8 },
   payChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: DESIGN.radius.sm,
   },
-  payChipText: { fontSize: 9, fontWeight: "700", letterSpacing: 0.5 },
-  name: { fontSize: 14, fontWeight: "700", letterSpacing: -0.1 },
+  payChipText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
+  name: { fontSize: 16, fontWeight: "700", letterSpacing: -0.1 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  meta: { fontSize: 11, fontWeight: "500" },
-  badgeRow: { flexDirection: "row", gap: 4, marginTop: 2 },
+  meta: { fontSize: 12, fontWeight: "500" },
+  badgeRow: { flexDirection: "row", gap: 4, marginTop: 3 },
   syncBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: DESIGN.radius.full,
   },
-  syncBadgeText: { fontSize: 9, fontWeight: "700" },
-  amountCol: { alignItems: "flex-end", gap: 4 },
-  amount: { fontSize: 15, fontWeight: "800", letterSpacing: -0.3 },
+  syncBadgeText: { fontSize: 10, fontWeight: "700" },
+  amountCol: { alignItems: "flex-end", gap: 5 },
+  amount: { fontSize: 17, fontWeight: "800", letterSpacing: -0.3 },
   receiptBtn: {
     flexDirection: "row", alignItems: "center", gap: 3,
-    backgroundColor: "#ECFDF5", paddingHorizontal: 7, paddingVertical: 3,
+    backgroundColor: "#ECFDF5", paddingHorizontal: 8, paddingVertical: 4,
     borderRadius: 999,
   },
-  receiptBtnText: { fontSize: 10, fontWeight: "700", color: "#1A6B3C" },
+  receiptBtnText: { fontSize: 11, fontWeight: "700", color: "#1A6B3C" },
   tapHint: {
     marginLeft: "auto",
   },
@@ -646,145 +648,148 @@ const rowStyles = StyleSheet.create({
   },
 });
 
-// ─── Summary Card ─────────────────────────────────────────────────────────────
+// ─── Summary Cards — Net Balance hero + Sales / Expenses / Transactions ────────
+// Split into separate cards (rather than one combined card) so each figure reads
+// at a glance, matching how traders scan a paper ledger's totals.
 
 interface SummaryCardProps {
   sales: number;
   expenses: number;
   net: number;
+  transactionCount: number;
+  pendingCount: number;
+  failedCount: number;
   colors: ReturnType<typeof useTheme>;
 }
 
-function SummaryCard({ sales, expenses, net, colors }: SummaryCardProps) {
+function SummaryCard({ sales, expenses, net, transactionCount, pendingCount, failedCount, colors }: SummaryCardProps) {
   const isPositive = net >= 0;
 
   return (
-    <LinearGradient
-      colors={isPositive ? ["#1a7a4a", "#22c55e"] : ["#991b1b", "#ef4444"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={summaryStyles.card}
-    >
-      {/* Decorative circles */}
-      <View style={summaryStyles.circle1} />
-      <View style={summaryStyles.circle2} />
+    <View style={summaryStyles.wrap}>
+      {/* Net Balance hero */}
+      <LinearGradient
+        colors={isPositive ? ["#1a7a4a", "#22c55e"] : ["#991b1b", "#ef4444"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={summaryStyles.heroCard}
+      >
+        <View style={summaryStyles.circle1} />
+        <View style={summaryStyles.circle2} />
 
-      <View style={summaryStyles.topRow}>
-        <View>
-          <Text style={summaryStyles.netLabel}>Net Balance</Text>
-          <Text style={summaryStyles.netAmount}>{formatNaira(net)}</Text>
+        <View style={summaryStyles.topRow}>
+          <View>
+            <Text style={summaryStyles.netLabel}>NET BALANCE</Text>
+            <Text style={summaryStyles.netAmount}>{formatNaira(net)}</Text>
+            <Text style={summaryStyles.netSub}>For the selected period</Text>
+          </View>
+          <View style={summaryStyles.netBadge}>
+            <Ionicons name={isPositive ? "trending-up" : "trending-down"} size={14} color="#fff" />
+            <Text style={summaryStyles.netBadgeText}>{isPositive ? "Profit" : "Loss"}</Text>
+          </View>
         </View>
-        <View style={summaryStyles.netBadge}>
-          <Ionicons
-            name={isPositive ? "trending-up" : "trending-down"}
-            size={16}
-            color={isPositive ? "#fff" : "#fff"}
-          />
-          <Text style={summaryStyles.netBadgeText}>
-            {isPositive ? "Profit" : "Loss"}
-          </Text>
+      </LinearGradient>
+
+      {/* Sales + Expenses side by side */}
+      <View style={summaryStyles.miniRow}>
+        <View style={[summaryStyles.miniCard, { backgroundColor: colors.surface }, DESIGN.shadow.soft]}>
+          <View style={summaryStyles.miniTopRow}>
+            <Text style={[summaryStyles.miniLabel, { color: colors.textMuted }]}>TOTAL SALES</Text>
+            <View style={[summaryStyles.miniIconWrap, { backgroundColor: "#ECFDF5" }]}>
+              <Ionicons name="arrow-up" size={13} color="#16A34A" />
+            </View>
+          </View>
+          <Text style={[summaryStyles.miniValue, { color: "#16A34A" }]}>{formatNaira(sales)}</Text>
+        </View>
+
+        <View style={[summaryStyles.miniCard, { backgroundColor: colors.surface }, DESIGN.shadow.soft]}>
+          <View style={summaryStyles.miniTopRow}>
+            <Text style={[summaryStyles.miniLabel, { color: colors.textMuted }]}>TOTAL EXPENSES</Text>
+            <View style={[summaryStyles.miniIconWrap, { backgroundColor: "#FEF2F2" }]}>
+              <Ionicons name="arrow-down" size={13} color="#DC2626" />
+            </View>
+          </View>
+          <Text style={[summaryStyles.miniValue, { color: "#DC2626" }]}>{formatNaira(expenses)}</Text>
         </View>
       </View>
 
-      <View style={summaryStyles.divider} />
-
-      <View style={summaryStyles.statsRow}>
-        <View style={summaryStyles.stat}>
-          <View style={summaryStyles.statIconWrap}>
-            <Ionicons name="arrow-up" size={12} color="#fff" />
-          </View>
-          <View>
-            <Text style={summaryStyles.statLabel}>Sales</Text>
-            <Text style={summaryStyles.statValue}>{formatNaira(sales)}</Text>
+      {/* Transactions count + sync health */}
+      <View style={[summaryStyles.miniCard, summaryStyles.fullCard, { backgroundColor: colors.surface }, DESIGN.shadow.soft]}>
+        <View style={summaryStyles.miniTopRow}>
+          <Text style={[summaryStyles.miniLabel, { color: colors.textMuted }]}>TRANSACTIONS</Text>
+          <View style={[summaryStyles.miniIconWrap, { backgroundColor: colors.primary + "15" }]}>
+            <Ionicons name="document-text-outline" size={13} color={colors.primary} />
           </View>
         </View>
-
-        <View style={[summaryStyles.statDivider]} />
-
-        <View style={summaryStyles.stat}>
-          <View style={[summaryStyles.statIconWrap, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
-            <Ionicons name="arrow-down" size={12} color="#fff" />
+        <Text style={[summaryStyles.miniValue, { color: colors.textPrimary }]}>{transactionCount}</Text>
+        {(failedCount > 0 || pendingCount > 0) && (
+          <View style={summaryStyles.syncRow}>
+            {failedCount > 0 && (
+              <View style={[summaryStyles.syncPill, { backgroundColor: "#FEF2F2" }]}>
+                <Ionicons name="alert-circle-outline" size={12} color="#DC2626" />
+                <Text style={[summaryStyles.syncPillText, { color: "#DC2626" }]}>
+                  {failedCount} failed to sync
+                </Text>
+              </View>
+            )}
+            {pendingCount > 0 && (
+              <View style={[summaryStyles.syncPill, { backgroundColor: "#FFFBEB" }]}>
+                <Ionicons name="sync-outline" size={12} color="#D97706" />
+                <Text style={[summaryStyles.syncPillText, { color: "#D97706" }]}>
+                  {pendingCount} pending sync
+                </Text>
+              </View>
+            )}
           </View>
-          <View>
-            <Text style={summaryStyles.statLabel}>Expenses</Text>
-            <Text style={summaryStyles.statValue}>{formatNaira(expenses)}</Text>
-          </View>
-        </View>
+        )}
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
 const summaryStyles = StyleSheet.create({
-  card: {
-    marginHorizontal: 16,
-    marginBottom: 16,
+  wrap: { paddingHorizontal: 16, marginBottom: 16, gap: 10 },
+  heroCard: {
     borderRadius: DESIGN.radius.xl,
     padding: 20,
     overflow: "hidden",
     ...DESIGN.shadow.medium,
   },
   circle1: {
-    position: "absolute",
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    top: -40,
-    right: -30,
+    position: "absolute", width: 140, height: 140, borderRadius: 70,
+    backgroundColor: "rgba(255,255,255,0.08)", top: -40, right: -30,
   },
   circle2: {
-    position: "absolute",
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    bottom: -20,
-    left: 20,
+    position: "absolute", width: 80, height: 80, borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.06)", bottom: -20, left: 20,
   },
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 16,
-  },
-  netLabel: { fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginBottom: 4 },
-  netAmount: { fontSize: 28, color: "#fff", fontWeight: "900", letterSpacing: -0.5 },
+  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  netLabel: { fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "700", letterSpacing: 0.5, marginBottom: 6 },
+  netAmount: { fontSize: 30, color: "#fff", fontWeight: "900", letterSpacing: -0.5 },
+  netSub: { fontSize: 12, color: "rgba(255,255,255,0.7)", fontWeight: "500", marginTop: 4 },
   netBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+    flexDirection: "row", alignItems: "center", gap: 4,
     backgroundColor: "rgba(255,255,255,0.2)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: DESIGN.radius.full,
   },
   netBadgeText: { fontSize: 12, color: "#fff", fontWeight: "700" },
-  divider: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    marginBottom: 16,
+  miniRow: { flexDirection: "row", gap: 10 },
+  miniCard: { flex: 1, borderRadius: DESIGN.radius.lg, padding: 14 },
+  fullCard: { flex: undefined },
+  miniTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  miniLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 0.4 },
+  miniIconWrap: {
+    width: 26, height: 26, borderRadius: DESIGN.radius.full,
+    alignItems: "center", justifyContent: "center",
   },
-  statsRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  miniValue: { fontSize: 18, fontWeight: "800", letterSpacing: -0.3 },
+  syncRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
+  syncPill: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: DESIGN.radius.full,
   },
-  stat: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
-  statIconWrap: {
-    width: 28, height: 28,
-    borderRadius: DESIGN.radius.full,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statLabel: { fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: "600" },
-  statValue: { fontSize: 14, color: "#fff", fontWeight: "800" },
-  statDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    marginHorizontal: 12,
-  },
+  syncPillText: { fontSize: 10, fontWeight: "700" },
 });
 
 // ─── Filter Pills ─────────────────────────────────────────────────────────────
@@ -811,8 +816,10 @@ function FilterPills({ active, onChange, colors }: FilterPillsProps) {
             onPress={() => onChange(f.key)}
             style={[
               pillStyles.pill,
-              { backgroundColor: isActive ? colors.primary : colors.surface },
-              { borderColor: isActive ? colors.primary : colors.border },
+              // Dark neutral when active — visually distinct from the green period-filter
+              // pills above, so the two filter groups don't blur together.
+              { backgroundColor: isActive ? "#111827" : colors.surface },
+              { borderColor: isActive ? "#111827" : colors.border },
               isActive && DESIGN.shadow.soft,
             ]}
             activeOpacity={0.75}
@@ -949,10 +956,10 @@ function FilterBar({ preset, onPreset, onOpenCalendar, customerQuery, onCustomer
 
 const fbStyles = StyleSheet.create({
 
-  wrapper: { 
-    // paddingHorizontal: 16, 
-    paddingBottom: 12, // Increased from 8 to 12
-    gap: 10            // Increased gap between date presets and search input
+  wrapper: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 10,
   },
   presetsRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   presetsScroll: { flexDirection: "row", gap: 6, paddingRight: 8 },
@@ -978,6 +985,63 @@ const fbStyles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 13, fontWeight: "500" },
 });
 
+// ─── New Entry Action Sheet ───────────────────────────────────────────────────
+
+interface NewEntrySheetProps {
+  visible: boolean;
+  onClose: () => void;
+  colors: ReturnType<typeof useTheme>;
+}
+
+function NewEntrySheet({ visible, onClose, colors }: NewEntrySheetProps) {
+  const options = [
+    { label: "New Sale", sub: "Record a sale you just made", icon: "cart-outline" as const, gradient: ["#1B4332", "#2D6A4F"] as [string, string], route: "/(tabs)/sales" },
+    { label: "New Expense", sub: "Log money spent on the business", icon: "receipt-outline" as const, gradient: ["#7F3D17", "#A0522D"] as [string, string], route: "/(tabs)/expenses" },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={calStyles.overlay} onPress={onClose}>
+        <Pressable style={[calStyles.sheet, { backgroundColor: colors.surface }]} onPress={() => {}}>
+          <View style={calStyles.handle} />
+          <Text style={[calStyles.title, { color: colors.textPrimary, marginBottom: 16 }]}>New Entry</Text>
+          {options.map((opt) => (
+            <TouchableOpacity
+              key={opt.label}
+              style={[sheetStyles.option, { borderColor: colors.border }]}
+              activeOpacity={0.8}
+              onPress={() => { onClose(); router.push(opt.route as any); }}
+            >
+              <LinearGradient colors={opt.gradient} style={sheetStyles.optionIcon}>
+                <Ionicons name={opt.icon} size={20} color="#fff" />
+              </LinearGradient>
+              <View style={{ flex: 1 }}>
+                <Text style={[sheetStyles.optionLabel, { color: colors.textPrimary }]}>{opt.label}</Text>
+                <Text style={[sheetStyles.optionSub, { color: colors.textMuted }]}>{opt.sub}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          ))}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const sheetStyles = StyleSheet.create({
+  option: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    padding: 14, borderRadius: DESIGN.radius.lg, borderWidth: 1,
+    marginBottom: 10,
+  },
+  optionIcon: {
+    width: 44, height: 44, borderRadius: DESIGN.radius.md,
+    alignItems: "center", justifyContent: "center",
+  },
+  optionLabel: { fontSize: 15, fontWeight: "700" },
+  optionSub: { fontSize: 12, marginTop: 2 },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 function getDateRange(preset: DatePreset): { start: string; end: string } | null {
@@ -998,8 +1062,10 @@ function getDateRange(preset: DatePreset): { start: string; end: string } | null
 export default function LedgerScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
-  // Subscribe so this screen re-renders when the privacy toggle flips.
-  useUIStore((s) => s.amountsHidden);
+  // Subscribing to the whole store (no selector) re-renders this screen on any
+  // change — including the privacy toggle, so formatNaira's masked output updates
+  // here too — and gives us live sync health (pending/failed) for the ledger.
+  const { pendingCount, failedCount } = useUIStore();
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
@@ -1007,6 +1073,21 @@ export default function LedgerScreen() {
   const [calVisible, setCalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState<LedgerFilter>("all");
   const [customerQuery, setCustomerQuery] = useState("");
+  const [newEntryVisible, setNewEntryVisible] = useState(false);
+
+  // "All time" pages backward through history (cursor = oldest created_at seen so
+  // far per table) instead of hard-capping at one fetch — a growing business's
+  // ledger shouldn't silently lose access to anything older than the first ~200
+  // transactions. Date-filtered views stay a single unbounded fetch: a day/week/
+  // month's worth of entries is bounded by real-world volume, and FlatList's own
+  // virtualization already renders even a large list efficiently.
+  const PAGE_SIZE = 40;
+  const [salesCursor, setSalesCursor] = useState<string | null>(null);
+  const [expensesCursor, setExpensesCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const initials = (user?.name ?? "U").split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 
   const load = useCallback(async () => {
     if (!user?._id) return;
@@ -1020,6 +1101,7 @@ export default function LedgerScreen() {
           salesDb.getByDate(user._id, customDate),
           expenseDb.getByDate(user._id, customDate),
         ]);
+        setHasMore(false);
       } else if (datePreset !== "all") {
         const range = getDateRange(datePreset);
         if (range) {
@@ -1030,11 +1112,15 @@ export default function LedgerScreen() {
         } else {
           [sales, expenses] = await Promise.all([salesDb.getRecent(user._id, 100), expenseDb.getRecent(user._id, 100)]);
         }
+        setHasMore(false);
       } else {
         [sales, expenses] = await Promise.all([
-          salesDb.getRecent(user._id, 100),
-          expenseDb.getRecent(user._id, 100),
+          salesDb.getRecent(user._id, PAGE_SIZE),
+          expenseDb.getRecent(user._id, PAGE_SIZE),
         ]);
+        setSalesCursor(sales.length ? sales[sales.length - 1].createdAt! : null);
+        setExpensesCursor(expenses.length ? expenses[expenses.length - 1].createdAt! : null);
+        setHasMore(sales.length === PAGE_SIZE || expenses.length === PAGE_SIZE);
       }
 
       const showDraft = datePreset === "all" || datePreset === "today";
@@ -1060,6 +1146,34 @@ export default function LedgerScreen() {
       setLoading(false);
     }
   }, [user?._id, datePreset, customDate]);
+
+  // Fetches the next page (only meaningful for "All time" — see `load` above)
+  // and appends rather than replacing, using each table's own cursor.
+  const loadMore = useCallback(async () => {
+    if (!user?._id || datePreset !== "all" || !hasMore || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const [moreSales, moreExpenses] = await Promise.all([
+        salesDb.getRecent(user._id, PAGE_SIZE, salesCursor ?? undefined),
+        expenseDb.getRecent(user._id, PAGE_SIZE, expensesCursor ?? undefined),
+      ]);
+      if (moreSales.length) setSalesCursor(moreSales[moreSales.length - 1].createdAt!);
+      if (moreExpenses.length) setExpensesCursor(moreExpenses[moreExpenses.length - 1].createdAt!);
+      setHasMore(moreSales.length === PAGE_SIZE || moreExpenses.length === PAGE_SIZE);
+
+      const getTime = (e: LedgerEntry): number =>
+        e.kind === "sales_draft" ? new Date(e.savedAt).getTime() : new Date((e.data as any).createdAt ?? (e.data as any).date).getTime();
+
+      const additions: LedgerEntry[] = [
+        ...moreSales.map((s) => ({ kind: "sale" as const, data: s, key: `s-${s.localId || s._id}` })),
+        ...moreExpenses.map((e) => ({ kind: "expense" as const, data: e, key: `e-${e.localId || e._id}` })),
+      ].sort((a, b) => getTime(b) - getTime(a));
+
+      setEntries((prev) => [...prev, ...additions]);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [user?._id, datePreset, hasMore, loadingMore, salesCursor, expensesCursor]);
 
   const loadRef = useRef(load);
   useEffect(() => { loadRef.current = load; }, [load]);
@@ -1118,50 +1232,6 @@ export default function LedgerScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top"]}>
 
-      {/* ── Hero Header ─────────────────────────────────────────────────────── */}
-      <LinearGradient
-        colors={[colors.primary + "18", colors.background]}
-        style={screenStyles.heroGradient}
-      >
-        <View style={screenStyles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={[screenStyles.iconBtn, { backgroundColor: colors.surface, ...DESIGN.shadow.soft }]}
-          >
-            <Ionicons name="arrow-back" size={18} color={colors.textPrimary} />
-          </TouchableOpacity>
-
-          <View style={screenStyles.headerMid}>
-            <Text style={[screenStyles.heroTitle, { color: colors.textPrimary }]}>
-              Transaction Ledger
-            </Text>
-            <Text style={[screenStyles.heroSub, { color: colors.textMuted }]}>
-              {datePreset === "custom" && customDate ? labelForDate(customDate) : datePreset === "all" ? "All dates" : datePreset}
-              {" · "}{activeFilter !== "all" ? activeFilter : "all types"}
-            </Text>
-          </View>
-
-          {/* Refresh btn */}
-          <TouchableOpacity
-            onPress={load}
-            style={[screenStyles.iconBtn, { backgroundColor: colors.surface, ...DESIGN.shadow.soft }]}
-          >
-            <Ionicons name="refresh-outline" size={18} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-
-      {/* ── Summary Card ─────────────────────────────────────────────────────── */}
-      {hasSummary && (
-        <SummaryCard
-          sales={totals.sales}
-          expenses={totals.expenses}
-          net={totals.net}
-          colors={colors}
-        />
-      )}
-
-
 <FlatList
   data={filteredEntries}
   keyExtractor={(item) => item.key}
@@ -1171,8 +1241,74 @@ export default function LedgerScreen() {
   refreshControl={
     <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />
   }
+  onEndReached={loadMore}
+  onEndReachedThreshold={0.4}
+  // The whole page — header, stats, filters, and list — scrolls as one surface via
+  // this single FlatList (rather than a fixed header above a small list area), so
+  // the header isn't eating into the space available for scrolling transactions.
   ListHeaderComponent={
     <>
+      {/* ── Hero Header ─────────────────────────────────────────────── */}
+      <LinearGradient
+        colors={[colors.primary + "18", colors.background]}
+        style={screenStyles.heroGradient}
+      >
+        <View style={screenStyles.headerRow}>
+          <View style={screenStyles.avatarWrap}>
+            <LinearGradient colors={[colors.primary, colors.primary + "AA"]} style={screenStyles.avatar}>
+              <Text style={screenStyles.avatarText}>{initials}</Text>
+            </LinearGradient>
+            <View>
+              <Text style={[screenStyles.greeting, { color: colors.textMuted }]} numberOfLines={1}>
+                {user?.businessName || "Finance"}
+              </Text>
+              <Text style={[screenStyles.heroTitle, { color: colors.textPrimary }]}>
+                Transaction Ledger
+              </Text>
+            </View>
+          </View>
+
+          <View style={screenStyles.headerActions}>
+            <AmountVisibilityToggle color={colors.primary} backgroundColor={colors.surface} style={DESIGN.shadow.soft} />
+            <TouchableOpacity
+              onPress={load}
+              style={[screenStyles.iconBtn, { backgroundColor: colors.surface, ...DESIGN.shadow.soft }]}
+            >
+              <Ionicons name="refresh-outline" size={18} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={screenStyles.subRow}>
+          <Text style={[screenStyles.heroSub, { color: colors.textMuted }]}>
+            {datePreset === "custom" && customDate ? labelForDate(customDate) : datePreset === "all" ? "All dates" : datePreset}
+            {" · "}{activeFilter !== "all" ? activeFilter : "all types"}
+            {" · "}{filteredEntries.length} record{filteredEntries.length === 1 ? "" : "s"}
+          </Text>
+          <TouchableOpacity
+            style={[screenStyles.newEntryBtn, { backgroundColor: colors.primary }]}
+            onPress={() => setNewEntryVisible(true)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="add" size={16} color="#fff" />
+            <Text style={screenStyles.newEntryText}>New Entry</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+
+      {/* ── Summary Card ─────────────────────────────────────────────── */}
+      {hasSummary && (
+        <SummaryCard
+          sales={totals.sales}
+          expenses={totals.expenses}
+          net={totals.net}
+          transactionCount={filteredEntries.length}
+          pendingCount={pendingCount}
+          failedCount={failedCount}
+          colors={colors}
+        />
+      )}
+
       {/* ── Filter Bar ─────────────────────────────────────────────────── */}
       <FilterBar
         preset={datePreset}
@@ -1187,6 +1323,14 @@ export default function LedgerScreen() {
       {/* ── Payment Filter Pills ───────────────────────────────────────── */}
       <FilterPills active={activeFilter} onChange={setActiveFilter} colors={colors} />
     </>
+  }
+  ListFooterComponent={
+    loadingMore ? (
+      <View style={screenStyles.loadingMore}>
+        <ActivityIndicator color={colors.primary} />
+        <Text style={[screenStyles.loadingMoreText, { color: colors.textMuted }]}>Loading more…</Text>
+      </View>
+    ) : null
   }
   ListEmptyComponent={
     !loading ? (
@@ -1217,6 +1361,12 @@ export default function LedgerScreen() {
         onClose={() => setCalVisible(false)}
         colors={colors}
       />
+
+      <NewEntrySheet
+        visible={newEntryVisible}
+        onClose={() => setNewEntryVisible(false)}
+        colors={colors}
+      />
     </SafeAreaView>
   );
 }
@@ -1231,23 +1381,41 @@ const screenStyles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 4,
   },
+  avatarWrap: { flexDirection: "row", alignItems: "center", gap: 12, flexShrink: 1 },
+  avatar: {
+    width: 44, height: 44, borderRadius: DESIGN.radius.full,
+    alignItems: "center", justifyContent: "center",
+  },
+  avatarText: { color: "#fff", fontSize: 15, fontWeight: "800" },
+  greeting: { fontSize: 11, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   iconBtn: {
     width: 40, height: 40,
     borderRadius: DESIGN.radius.full,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerMid: { alignItems: "center", flex: 1, paddingHorizontal: 8 },
   heroTitle: { fontSize: 18, fontWeight: "800", letterSpacing: -0.3 },
-  heroSub: { fontSize: 12, marginTop: 2, fontWeight: "500" },
-  list: { 
-    paddingHorizontal: 16, 
-    paddingTop: 12,       // Add padding here to ensure the first card has space
-    paddingBottom: 48 
+  subRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingTop: 12, gap: 10,
   },
-  empty: { alignItems: "center", paddingTop: 32, gap: 12 },
+  heroSub: { fontSize: 12, fontWeight: "500", flex: 1 },
+  newEntryBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: DESIGN.radius.full,
+  },
+  newEntryText: { fontSize: 12, fontWeight: "700", color: "#fff" },
+  // No horizontal padding here — the hero header now lives inside this same
+  // scrollable content (ListHeaderComponent) and needs to stay full-bleed; each
+  // piece (header, summary cards, filter bar, transaction cards) insets itself.
+  list: {
+    paddingTop: 12,
+    paddingBottom: 48,
+  },
+  empty: { alignItems: "center", paddingTop: 32, paddingHorizontal: 16, gap: 12 },
   emptyIconGradient: {
     width: 90, height: 90,
     borderRadius: 45,
@@ -1257,4 +1425,6 @@ const screenStyles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontWeight: "800" },
   emptySub: { fontSize: 14, textAlign: "center", maxWidth: 260, lineHeight: 20 },
+  loadingMore: { paddingVertical: 20, alignItems: "center", gap: 6 },
+  loadingMoreText: { fontSize: 12, fontWeight: "600" },
 });
