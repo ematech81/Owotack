@@ -8,7 +8,7 @@ import { registerReconnectHandler } from "../services/api";
 export function useOfflineSync() {
   const userId = useAuthStore((s) => s.user?._id);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const { setSyncing, setPendingCount } = useUIStore();
+  const { setSyncing, setPendingCount, setFailedCount } = useUIStore();
   const running = useRef(false);
   const userIdRef = useRef(userId);
 
@@ -20,12 +20,15 @@ export function useOfflineSync() {
     try {
       const pending = await syncService.getPendingCount();
       setPendingCount(pending);
-      if (pending === 0) return;
-
-      setSyncing(true);
-      await syncService.syncPending();
-      const remaining = await syncService.getPendingCount();
-      setPendingCount(remaining);
+      if (pending > 0) {
+        setSyncing(true);
+        await syncService.syncPending();
+        const remaining = await syncService.getPendingCount();
+        setPendingCount(remaining);
+      }
+      // Refresh regardless of pending count — a record can flip to 'failed' this
+      // run (hitting the retry cap) even when nothing else was left pending.
+      setFailedCount(await syncService.getFailedCount());
     } catch {
       // Network down — will retry next foreground
     } finally {

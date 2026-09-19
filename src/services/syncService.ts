@@ -3,6 +3,15 @@ import { expenseDb } from "../database/expenseDb";
 import api from "./api";
 import { ApiResponse, Sale, Expense } from "../types";
 
+// Guards against double-syncing the same record: a sale/expense's own save-time
+// inline POST (salesStore/expenseStore addSale/addExpense) and a background
+// syncPending() run (reconnect or app-foreground) can otherwise both pick up the
+// same still-pending localId and POST it twice. Both paths check/reserve here first.
+const inFlight = new Set<string>();
+export const isSyncInFlight = (localId: string): boolean => inFlight.has(localId);
+export const markSyncInFlight = (localId: string): void => { inFlight.add(localId); };
+export const clearSyncInFlight = (localId: string): void => { inFlight.delete(localId); };
+
 export const syncService = {
   async getPendingCount(): Promise<number> {
     const [sales, expenses] = await Promise.all([
@@ -10,6 +19,14 @@ export const syncService = {
       expenseDb.getPending(),
     ]);
     return sales.length + expenses.length;
+  },
+
+  async getFailedCount(): Promise<number> {
+    const [sales, expenses] = await Promise.all([
+      salesDb.getFailedCount(),
+      expenseDb.getFailedCount(),
+    ]);
+    return sales + expenses;
   },
 
   async syncPending(): Promise<{ sales: number; expenses: number }> {
@@ -22,6 +39,8 @@ export const syncService = {
     ]);
 
     for (const sale of pendingSales) {
+      if (!sale.localId || isSyncInFlight(sale.localId)) continue; // being synced elsewhere already
+      markSyncInFlight(sale.localId);
       try {
         const res = await api.post<ApiResponse<Sale>>("/sales", {
           date: sale.date,
@@ -33,12 +52,18 @@ export const syncService = {
           customerName: sale.customerName,
           localId: sale.localId,
         });
-        await salesDb.markSynced(sale.localId!, res.data.data._id);
+        await salesDb.markSynced(sale.localId, res.data.data._id);
         salesSynced++;
-      } catch { /* stay pending, retry next time */ }
+      } catch {
+        await salesDb.recordSyncFailure(sale.localId).catch(() => {});
+      } finally {
+        clearSyncInFlight(sale.localId);
+      }
     }
 
     for (const expense of pendingExpenses) {
+      if (!expense.localId || isSyncInFlight(expense.localId)) continue;
+      markSyncInFlight(expense.localId);
       try {
         const res = await api.post<ApiResponse<Expense>>("/expenses", {
           date: expense.date,
@@ -49,9 +74,13 @@ export const syncService = {
           recurringFrequency: expense.recurringFrequency,
           localId: expense.localId,
         });
-        await expenseDb.markSynced(expense.localId!, res.data.data._id);
+        await expenseDb.markSynced(expense.localId, res.data.data._id);
         expensesSynced++;
-      } catch { /* stay pending, retry next time */ }
+      } catch {
+        await expenseDb.recordSyncFailure(expense.localId).catch(() => {});
+      } finally {
+        clearSyncInFlight(expense.localId);
+      }
     }
 
     return { sales: salesSynced, expenses: expensesSynced };

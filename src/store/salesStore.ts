@@ -4,6 +4,7 @@ import { salesDb } from "../database/salesDb";
 import api from "../services/api";
 import { ApiResponse } from "../types";
 import { useUIStore } from "./uiStore";
+import { markSyncInFlight, clearSyncInFlight } from "../services/syncService";
 import { generateInvoiceNumber } from "../utils/invoiceNumber";
 
 interface SalesState {
@@ -77,7 +78,8 @@ export const useSalesStore = create<SalesState>((set) => ({
     const refreshed = await salesDb.getByDate(data.userId, today);
     set({ todaySales: refreshed });
 
-    if (isOnline) {
+    if (isOnline && localSale.localId) {
+      markSyncInFlight(localSale.localId);
       try {
         const res = await api.post<ApiResponse<Sale>>("/sales", {
           date: data.date,
@@ -93,9 +95,11 @@ export const useSalesStore = create<SalesState>((set) => ({
           discountType: data.discountType ?? "fixed",
           tax: data.tax ?? 0,
         });
-        await salesDb.markSynced(localSale.localId!, res.data.data._id);
+        await salesDb.markSynced(localSale.localId, res.data.data._id);
       } catch {
         // Will sync later via background sync
+      } finally {
+        clearSyncInFlight(localSale.localId);
       }
     }
 

@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 import { ApiResponse } from "../types";
 import { ApiIPAddress } from "../utils/config";
 import { useUIStore } from "../store/uiStore";
+import { secureRead } from "../utils/secureStore";
 
 const API_URL = ApiIPAddress;
 // const APP_KEY = process.env.EXPO_PUBLIC_APP_KEY ?? "";
@@ -38,7 +39,10 @@ const api: AxiosInstance = axios.create({
 });
 
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-  const token = await SecureStore.getItemAsync("accessToken");
+  // Timeout-guarded — an unguarded read here can hang indefinitely on some Android
+  // Keystore implementations, freezing the request before axios's own timeout ever
+  // starts (the request is never dispatched).
+  const token = await secureRead("accessToken");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -71,11 +75,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // No refresh token — already logged out, don't trigger logout loop
-      const refreshToken = await SecureStore.getItemAsync("refreshToken");
-      if (!refreshToken) return Promise.reject(error);
-
-      // Another refresh is already in flight — queue this request
+      // Checked and set synchronously — before any `await` — so two 401s arriving
+      // close together can't both slip past this and both kick off a refresh call
+      // (the old version checked this only after an `await SecureStore...`, leaving
+      // a race window where both requests would see _isRefreshing as false).
       if (_isRefreshing) {
         return new Promise((resolve, reject) => {
           _refreshQueue.push({
@@ -87,9 +90,18 @@ api.interceptors.response.use(
           });
         });
       }
-
       _isRefreshing = true;
+
       try {
+        const refreshToken = await secureRead("refreshToken");
+        if (!refreshToken) {
+          // Already logged out — don't attempt a refresh, but do force the app
+          // back to login instead of leaving it stuck half-authenticated.
+          processQueue(error, null);
+          _onAuthFail?.();
+          return Promise.reject(error);
+        }
+
         const response = await axios.post<ApiResponse<{ accessToken: string; refreshToken: string }>>(
           `${API_URL}/auth/refresh-token`,
           { refreshToken },

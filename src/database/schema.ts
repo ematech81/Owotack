@@ -119,4 +119,10 @@ export const initDatabase = async (): Promise<void> => {
   try { await database.execAsync("ALTER TABLE sales ADD COLUMN discount_amount REAL DEFAULT 0;"); } catch {}
   try { await database.execAsync("ALTER TABLE sales ADD COLUMN tax REAL DEFAULT 0;"); } catch {}
   try { await database.execAsync("ALTER TABLE sales ADD COLUMN tax_amount REAL DEFAULT 0;"); } catch {}
+
+  // Migration: sync_attempts — caps retry count so a record that will never sync
+  // (a permanent validation rejection, not a network blip) stops being retried
+  // forever and gets flagged instead of silently staying "pending" indefinitely.
+  try { await database.execAsync("ALTER TABLE sales ADD COLUMN sync_attempts INTEGER DEFAULT 0;"); } catch {}
+  try { await database.execAsync("ALTER TABLE expenses ADD COLUMN sync_attempts INTEGER DEFAULT 0;"); } catch {}
 };

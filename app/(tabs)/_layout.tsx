@@ -18,7 +18,7 @@ const TAB_ICONS: Record<string, { active: IoniconName; inactive: IoniconName }> 
 
 export default function TabLayout() {
   const { isAuthenticated } = useAuthStore();
-  const { pendingCount, isSyncing } = useUIStore();
+  const { pendingCount, isSyncing, failedCount } = useUIStore();
   const colors = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -49,8 +49,15 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarBadge: isSyncing ? "↑" : pendingCount > 0 ? pendingCount : undefined,
-          tabBarBadgeStyle: { backgroundColor: "#F59E0B", fontSize: 10, minWidth: 18 },
+          // Failed (permanently stuck) entries take priority over the normal
+          // syncing/pending signal — a trader needs to notice these specifically,
+          // since they'll never auto-retry again.
+          tabBarBadge: failedCount > 0 ? "!" : isSyncing ? "↑" : pendingCount > 0 ? pendingCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: failedCount > 0 ? "#DC2626" : "#F59E0B",
+            fontSize: 10,
+            minWidth: 18,
+          },
         }}
       />
       <Tabs.Screen name="ledger"  options={{ title: "Ledger"  }} />

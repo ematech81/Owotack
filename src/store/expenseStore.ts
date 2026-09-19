@@ -4,6 +4,7 @@ import { expenseDb } from "../database/expenseDb";
 import api from "../services/api";
 import { ApiResponse } from "../types";
 import { useUIStore } from "./uiStore";
+import { markSyncInFlight, clearSyncInFlight } from "../services/syncService";
 
 interface ExpenseState {
   todayExpenses: Expense[];
@@ -32,7 +33,8 @@ export const useExpenseStore = create<ExpenseState>((set) => ({
     const localExpense = await expenseDb.insert(data.userId, data);
     set((state) => ({ todayExpenses: [localExpense, ...state.todayExpenses] }));
 
-    if (isOnline) {
+    if (isOnline && localExpense.localId) {
+      markSyncInFlight(localExpense.localId);
       try {
         const res = await api.post<ApiResponse<Expense>>("/expenses", {
           date: data.date,
@@ -44,9 +46,11 @@ export const useExpenseStore = create<ExpenseState>((set) => ({
           rawInput: data.rawInput,
           localId: localExpense.localId,
         });
-        await expenseDb.markSynced(localExpense.localId!, res.data.data._id);
+        await expenseDb.markSynced(localExpense.localId, res.data.data._id);
       } catch {
         // Will sync later
+      } finally {
+        clearSyncInFlight(localExpense.localId);
       }
     }
 

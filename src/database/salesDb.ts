@@ -37,11 +37,22 @@ type LocalSaleRow = {
   is_deleted: number;
 };
 
-const rowToSale = (row: LocalSaleRow): Sale => ({
+// Returns null (instead of throwing) on a corrupted `items` column — e.g. a partial
+// write left by an app kill mid-transaction — so one bad row can't take down an
+// entire screen's data. Callers filter nulls out of the mapped array.
+const rowToSale = (row: LocalSaleRow): Sale | null => {
+  let items: SaleItem[];
+  try {
+    items = JSON.parse(row.items) as SaleItem[];
+  } catch {
+    console.warn(`[salesDb] Corrupted items JSON for row ${row.id} — skipping`);
+    return null;
+  }
+  return {
   _id: row.server_id || row.id,
   userId: row.user_id,
   date: row.date,
-  items: JSON.parse(row.items) as SaleItem[],
+  items,
   subtotal: row.subtotal ?? row.total_amount,
   discount: row.discount ?? 0,
   discountType: (row.discount_type as Sale["discountType"]) ?? "fixed",
@@ -62,7 +73,11 @@ const rowToSale = (row: LocalSaleRow): Sale => ({
   localId: row.id,
   isDeleted: row.is_deleted === 1,
   createdAt: row.created_at,
-});
+  };
+};
+
+const rowsToSales = (rows: LocalSaleRow[]): Sale[] =>
+  rows.map(rowToSale).filter((s): s is Sale => s !== null);
 
 export const salesDb = {
   async insert(userId: string, data: {
@@ -112,7 +127,8 @@ export const salesDb = {
     );
 
     const row = await db.getFirstAsync<LocalSaleRow>("SELECT * FROM sales WHERE id = ?", [id]);
-    return rowToSale(row!);
+    // Row we just wrote ourselves — JSON.stringify'd above, so it will parse back fine.
+    return rowToSale(row!)!;
   },
 
   async getById(localId: string): Promise<Sale | null> {
@@ -132,7 +148,7 @@ export const salesDb = {
       "SELECT * FROM sales WHERE user_id = ? AND date >= ? AND date < ? AND is_deleted = 0 ORDER BY created_at DESC",
       [userId, ymd, nextDay]
     );
-    return rows.map(rowToSale);
+    return rowsToSales(rows);
   },
 
   async getPending(): Promise<Sale[]> {
@@ -140,15 +156,38 @@ export const salesDb = {
     const rows = await db.getAllAsync<LocalSaleRow>(
       "SELECT * FROM sales WHERE sync_status = 'pending' AND is_deleted = 0"
     );
-    return rows.map(rowToSale);
+    return rowsToSales(rows);
   },
 
   async markSynced(localId: string, serverId: string): Promise<void> {
     const db = await getDb();
     await db.runAsync(
-      "UPDATE sales SET server_id = ?, sync_status = 'synced', updated_at = ? WHERE id = ?",
+      "UPDATE sales SET server_id = ?, sync_status = 'synced', sync_attempts = 0, updated_at = ? WHERE id = ?",
       [serverId, new Date().toISOString(), localId]
     );
+  },
+
+  // Caps retries at 5 attempts — after that, mark 'failed' instead of staying
+  // 'pending' forever, so a permanently-rejected record stops being retried on
+  // every foreground/reconnect and can be surfaced to the user instead.
+  async recordSyncFailure(localId: string): Promise<void> {
+    const db = await getDb();
+    await db.runAsync(
+      `UPDATE sales
+       SET sync_attempts = sync_attempts + 1,
+           sync_status = CASE WHEN sync_attempts + 1 >= 5 THEN 'failed' ELSE 'pending' END,
+           updated_at = ?
+       WHERE id = ?`,
+      [new Date().toISOString(), localId]
+    );
+  },
+
+  async getFailedCount(): Promise<number> {
+    const db = await getDb();
+    const row = await db.getFirstAsync<{ n: number }>(
+      "SELECT COUNT(*) as n FROM sales WHERE sync_status = 'failed' AND is_deleted = 0"
+    );
+    return row?.n ?? 0;
   },
 
   async softDelete(localId: string): Promise<void> {
@@ -165,7 +204,7 @@ export const salesDb = {
       "SELECT * FROM sales WHERE user_id = ? AND date >= ? AND date < ? AND is_deleted = 0 ORDER BY created_at DESC",
       [userId, startYMD, nextYMD(endYMD)]
     );
-    return rows.map(rowToSale);
+    return rowsToSales(rows);
   },
 
   async getRecent(userId: string, limit = 100): Promise<Sale[]> {
@@ -174,7 +213,7 @@ export const salesDb = {
       "SELECT * FROM sales WHERE user_id = ? AND is_deleted = 0 ORDER BY created_at DESC LIMIT ?",
       [userId, limit]
     );
-    return rows.map(rowToSale);
+    return rowsToSales(rows);
   },
 
   async upsertFromServer(userId: string, sales: Sale[]): Promise<void> {

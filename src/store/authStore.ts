@@ -6,15 +6,7 @@ import { clearTipCache } from "../services/aiService";
 import { afEvents } from "../services/appsflyerService";
 import api from "../services/api";
 import { ApiResponse } from "../types";
-
-// On some Android phones (especially with aggressive battery management), the
-// Android Keystore service can hang indefinitely, causing SecureStore calls to
-// never resolve. This wrapper ensures every read completes within the timeout.
-const secureRead = (key: string, timeoutMs = 3000): Promise<string | null> =>
-  Promise.race([
-    SecureStore.getItemAsync(key),
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
-  ]);
+import { secureRead } from "../utils/secureStore";
 
 const USER_CACHE_KEY = "cached_user";
 const ONBOARDED_KEY = "has_onboarded";

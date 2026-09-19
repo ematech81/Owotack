@@ -7,11 +7,14 @@ interface UIState {
   isOnline: boolean;
   isSyncing: boolean;
   pendingCount: number;
+  /** Records that hit the sync retry cap (permanent failure, not a network blip) — never auto-retried again. */
+  failedCount: number;
   /** When true, all naira figures across the app render as masked (privacy mode). */
   amountsHidden: boolean;
   setOnline: (status: boolean) => void;
   setSyncing: (status: boolean) => void;
   setPendingCount: (n: number) => void;
+  setFailedCount: (n: number) => void;
   toggleAmountsHidden: () => void;
   /** Restores the persisted preference on app launch. */
   loadAmountsHidden: () => Promise<void>;
@@ -21,10 +24,12 @@ export const useUIStore = create<UIState>((set, get) => ({
   isOnline: true,
   isSyncing: false,
   pendingCount: 0,
+  failedCount: 0,
   amountsHidden: false,
   setOnline: (isOnline) => set({ isOnline }),
   setSyncing: (isSyncing) => set({ isSyncing }),
   setPendingCount: (pendingCount) => set({ pendingCount }),
+  setFailedCount: (failedCount) => set({ failedCount }),
   toggleAmountsHidden: () => {
     const next = !get().amountsHidden;
     set({ amountsHidden: next });

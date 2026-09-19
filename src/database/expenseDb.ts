@@ -92,9 +92,32 @@ export const expenseDb = {
   async markSynced(localId: string, serverId: string): Promise<void> {
     const db = await getDb();
     await db.runAsync(
-      "UPDATE expenses SET server_id = ?, sync_status = 'synced', updated_at = ? WHERE id = ?",
+      "UPDATE expenses SET server_id = ?, sync_status = 'synced', sync_attempts = 0, updated_at = ? WHERE id = ?",
       [serverId, new Date().toISOString(), localId]
     );
+  },
+
+  // Caps retries at 5 attempts — after that, mark 'failed' instead of staying
+  // 'pending' forever, so a permanently-rejected record stops being retried on
+  // every foreground/reconnect and can be surfaced to the user instead.
+  async recordSyncFailure(localId: string): Promise<void> {
+    const db = await getDb();
+    await db.runAsync(
+      `UPDATE expenses
+       SET sync_attempts = sync_attempts + 1,
+           sync_status = CASE WHEN sync_attempts + 1 >= 5 THEN 'failed' ELSE 'pending' END,
+           updated_at = ?
+       WHERE id = ?`,
+      [new Date().toISOString(), localId]
+    );
+  },
+
+  async getFailedCount(): Promise<number> {
+    const db = await getDb();
+    const row = await db.getFirstAsync<{ n: number }>(
+      "SELECT COUNT(*) as n FROM expenses WHERE sync_status = 'failed' AND is_deleted = 0"
+    );
+    return row?.n ?? 0;
   },
 
   async softDelete(localId: string): Promise<void> {
