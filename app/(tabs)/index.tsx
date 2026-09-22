@@ -687,7 +687,7 @@ export default function DashboardScreen() {
 
 const makeStyles = (colors: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.background },
+    safe: { flex: 1, backgroundColor: "#F3FAF6" },
     container: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 56 },
 
     // ── Broadcasts ──
