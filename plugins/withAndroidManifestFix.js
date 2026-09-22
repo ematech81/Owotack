@@ -20,14 +20,22 @@ module.exports = function withAndroidManifestFix(config) {
     const mainApplication = manifest.application[0];
     mainApplication.$["tools:replace"] = "android:fullBackupContent,android:dataExtractionRules";
 
-    // Ensure AD_ID permission has tools:node="merge" to prevent duplicate conflicts
-    // when AppsFlyer SDK also declares it
+    // Force the AD_ID permission to survive the manifest merge. Google's own Play
+    // Services libraries (pulled in transitively) now strip this permission from
+    // their own bundled manifest by default — a plain declaration, or even
+    // tools:node="merge", loses to an explicit removal from a dependency.
+    // tools:node="replace" is the only directive that makes our declaration win
+    // regardless of what any library does. Without this, Play Console flags the
+    // app as declaring "uses advertising ID" while the compiled manifest doesn't
+    // actually request the permission, silently zeroing out AppsFlyer's ad ID.
+    const AD_ID_PERMISSION = "com.google.android.gms.permission.AD_ID";
     const permissions = manifest["uses-permission"] || [];
-    const adIdPerm = permissions.find(
-      (p) => p.$?.["android:name"] === "com.google.android.gms.permission.AD_ID"
-    );
+    const adIdPerm = permissions.find((p) => p.$?.["android:name"] === AD_ID_PERMISSION);
     if (adIdPerm) {
-      adIdPerm.$["tools:node"] = "merge";
+      adIdPerm.$["tools:node"] = "replace";
+    } else {
+      permissions.push({ $: { "android:name": AD_ID_PERMISSION, "tools:node": "replace" } });
+      manifest["uses-permission"] = permissions;
     }
 
     return config;
