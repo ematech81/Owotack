@@ -2,10 +2,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "./api";
 import { ApiResponse } from "../types";
 
+export interface IBroadcastAction {
+  label: string;
+  url: string;
+}
+
 export interface IBroadcast {
   _id: string;
   title: string;
   content: string;
+  actionButton?: IBroadcastAction;
   createdAt: string;
 }
 

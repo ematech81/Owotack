@@ -9,6 +9,8 @@ import {
   Platform,
   Modal,
   Pressable,
+  Linking,
+  Alert,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -299,6 +301,20 @@ export default function DashboardScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.broadcastTitle}>{b.title}</Text>
               <Text style={styles.broadcastContent}>{b.content}</Text>
+              {b.actionButton && (
+                <TouchableOpacity
+                  style={styles.broadcastActionBtn}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    Linking.openURL(b.actionButton!.url).catch(() =>
+                      Alert.alert("Couldn't open link", "Please try again in a moment.")
+                    );
+                  }}
+                >
+                  <Text style={styles.broadcastActionBtnText}>{b.actionButton.label}</Text>
+                  <Ionicons name="arrow-forward" size={13} color="#fff" />
+                </TouchableOpacity>
+              )}
             </View>
             <TouchableOpacity
               onPress={() => {
@@ -698,6 +714,13 @@ const makeStyles = (colors: ReturnType<typeof useTheme>) =>
     },
     broadcastTitle: { fontSize: 13, fontWeight: "700", color: "#1E40AF", marginBottom: 3 },
     broadcastContent: { fontSize: 13, color: "#1E3A8A", lineHeight: 18 },
+    broadcastActionBtn: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+      backgroundColor: "#1E40AF", alignSelf: "flex-start",
+      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
+      marginTop: 10,
+    },
+    broadcastActionBtnText: { fontSize: 12, fontWeight: "700", color: "#fff" },
 
     // ── Header ──
     header: {
