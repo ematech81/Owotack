@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { subscriptionService, SubscriptionStatus, CheckoutResult } from "../services/subscriptionService";
+import { subscriptionService, SubscriptionStatus, CheckoutResult, BillingInterval } from "../services/subscriptionService";
 import { PlanId } from "../config/plans";
 import { useAuthStore } from "./authStore";
 
@@ -9,7 +9,7 @@ interface SubscriptionState {
   isVerifying: boolean;
 
   loadStatus: () => Promise<void>;
-  initializeCheckout: (planId: PlanId) => Promise<CheckoutResult>;
+  initializeCheckout: (planId: PlanId, interval?: BillingInterval) => Promise<CheckoutResult>;
   verifyPayment: (txRef: string) => Promise<void>;
   cancelSubscription: () => Promise<void>;
 }
@@ -29,8 +29,8 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     }
   },
 
-  initializeCheckout: async (planId: PlanId): Promise<CheckoutResult> => {
-    return subscriptionService.initialize(planId);
+  initializeCheckout: async (planId: PlanId, interval: BillingInterval = "monthly"): Promise<CheckoutResult> => {
+    return subscriptionService.initialize(planId, interval);
   },
 
   verifyPayment: async (txRef: string) => {

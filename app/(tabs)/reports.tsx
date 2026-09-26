@@ -819,6 +819,7 @@ export default function ReportsScreen() {
         visible={upgradeVisible}
         onClose={() => setUpgradeVisible(false)}
         feature="reports"
+        currentPlanId={planId}
       />
     </SafeAreaView>
   );

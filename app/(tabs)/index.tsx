@@ -618,6 +618,7 @@ export default function DashboardScreen() {
         visible={upgradeVisible}
         onClose={() => setUpgradeVisible(false)}
         feature="reports"
+        currentPlanId={planId}
       />
 
       {/* ── Notification Panel ── */}

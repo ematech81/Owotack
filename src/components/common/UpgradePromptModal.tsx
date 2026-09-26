@@ -11,7 +11,28 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useTheme } from "../../hooks/useTheme";
 import { formatNaira } from "../../utils/formatters";
-import { PLANS } from "../../config/plans";
+import { PLANS, PlanId, PlanConfig, formatLimit } from "../../config/plans";
+
+const PLAN_ORDER: PlanId[] = ["free", "growth", "pro", "business"];
+
+function getNextPlan(currentPlanId: PlanId): PlanConfig {
+  const idx = PLAN_ORDER.indexOf(currentPlanId);
+  const nextId = PLAN_ORDER[idx + 1] ?? "business";
+  return PLANS.find((p) => p.id === nextId) ?? PLANS.find((p) => p.id === "growth")!;
+}
+
+function planBenefits(plan: PlanConfig) {
+  const l = plan.limits;
+  return [
+    { icon: "bag-handle-outline", text: `${formatLimit(l.salesPerMonth)} sales per month` },
+    { icon: "receipt-outline", text: `${formatLimit(l.expensesPerMonth)} expense entries per month` },
+    { icon: "cube-outline", text: `${formatLimit(l.stockItems)} stock items` },
+    { icon: "sparkles-outline", text: l.aiChatsPerDay === 0 ? "No AI chats" : `${formatLimit(l.aiChatsPerDay)} AI chats per day` },
+    { icon: "mic-outline", text: l.voicePerMonth === 0 ? "No voice entries" : `${formatLimit(l.voicePerMonth)} voice entries per month` },
+    { icon: "logo-whatsapp", text: l.whatsappReminders === 0 ? "No WhatsApp reminders" : `${formatLimit(l.whatsappReminders)} WhatsApp credit reminders` },
+    { icon: "bar-chart-outline", text: l.reportsAccess === "full" ? "Full business reports" : l.reportsAccess === "weekly" ? "Weekly business reports" : "Today's reports only" },
+  ];
+}
 
 // ─── Feature config ───────────────────────────────────────────────────────────
 
@@ -32,7 +53,7 @@ const FEATURE_CONFIG: Record<UpgradeFeature, FeatureConfig> = {
     iconBg: "#DCFCE7",
     title: "Sales Limit Reached",
     description: (used, limit) =>
-      `You've used all ${limit} sales for this month on the free plan. Upgrade to record unlimited sales and keep growing your business.`,
+      `You've used all ${limit} sales for this month. Your limit resets next month, or you can upgrade now to record unlimited sales.`,
   },
   expenses: {
     icon: "receipt-outline",
@@ -40,7 +61,7 @@ const FEATURE_CONFIG: Record<UpgradeFeature, FeatureConfig> = {
     iconBg: "#FEE2E2",
     title: "Expenses Limit Reached",
     description: (used, limit) =>
-      `You've used all ${limit} expense entries for this month. Upgrade to track all your costs and see your real profit.`,
+      `You've used all ${limit} expense entries for this month. Your limit resets next month, or you can upgrade now to track every cost.`,
   },
   stock: {
     icon: "cube-outline",
@@ -48,7 +69,7 @@ const FEATURE_CONFIG: Record<UpgradeFeature, FeatureConfig> = {
     iconBg: "#FEF3C7",
     title: "Stock Limit Reached",
     description: (used, limit) =>
-      `You've added ${used} of ${limit} stock items allowed on the free plan. Upgrade to manage your full inventory.`,
+      `You've added ${used} of ${limit} stock items allowed on your current plan. Upgrade to manage your full inventory.`,
   },
   credits: {
     icon: "cash-outline",
@@ -56,7 +77,7 @@ const FEATURE_CONFIG: Record<UpgradeFeature, FeatureConfig> = {
     iconBg: "#FEF3C7",
     title: "Credits Limit Reached",
     description: (used, limit) =>
-      `You have ${used} of ${limit} active credits on the free plan. Upgrade to track unlimited customers who owe you money.`,
+      `You have ${used} of ${limit} active credits on your current plan. Upgrade to track unlimited customers who owe you money.`,
   },
   ai: {
     icon: "sparkles-outline",
@@ -82,7 +103,7 @@ const FEATURE_CONFIG: Record<UpgradeFeature, FeatureConfig> = {
     iconBg: "#DCFCE7",
     title: "WhatsApp Reminders Limit Reached",
     description: (used, limit) =>
-      `You've sent ${used} of ${limit} WhatsApp reminders this month. Upgrade to send more and keep your customers paying on time.`,
+      `You've sent ${used} of ${limit} WhatsApp reminders this month. Your limit resets next month, or you can upgrade now to send more.`,
   },
   reports: {
     icon: "bar-chart-outline",
@@ -94,16 +115,6 @@ const FEATURE_CONFIG: Record<UpgradeFeature, FeatureConfig> = {
   },
 };
 
-const GROWTH_BENEFITS = [
-  { icon: "bag-handle-outline",      text: "300 sales per month" },
-  { icon: "receipt-outline",         text: "150 expense entries per month" },
-  { icon: "cube-outline",            text: "Up to 100 stock items" },
-  { icon: "sparkles-outline",        text: "10 AI chats per day" },
-  { icon: "mic-outline",             text: "20 voice entries per month" },
-  { icon: "logo-whatsapp",           text: "30 WhatsApp credit reminders" },
-  { icon: "bar-chart-outline",       text: "Weekly business reports" },
-];
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -112,12 +123,14 @@ interface Props {
   feature: UpgradeFeature;
   used?: number;
   limit?: number;
+  currentPlanId?: PlanId;
 }
 
-export function UpgradePromptModal({ visible, onClose, feature, used = 0, limit = 0 }: Props) {
+export function UpgradePromptModal({ visible, onClose, feature, used = 0, limit = 0, currentPlanId = "free" }: Props) {
   const colors = useTheme();
   const config = FEATURE_CONFIG[feature];
-  const growthPlan = PLANS.find((p) => p.id === "growth")!;
+  const nextPlan = getNextPlan(currentPlanId);
+  const benefits = planBenefits(nextPlan);
   const s = makeStyles(colors);
 
   const handleUpgrade = () => {
@@ -161,12 +174,12 @@ export function UpgradePromptModal({ visible, onClose, feature, used = 0, limit 
             </View>
           )}
 
-          {/* Growth plan benefits */}
+          {/* Next-tier plan benefits */}
           <View style={[s.benefitsBox, { backgroundColor: colors.background }]}>
             <Text style={s.benefitsTitle}>
-              Upgrade to Growth — {formatNaira(growthPlan.priceNaira)}/month
+              Upgrade to {nextPlan.name} — {formatNaira(nextPlan.priceNaira)}/month
             </Text>
-            {GROWTH_BENEFITS.map((b) => (
+            {benefits.map((b) => (
               <View key={b.text} style={s.benefitRow}>
                 <View style={[s.benefitIcon, { backgroundColor: "#DCFCE7" }]}>
                   <Ionicons name={b.icon as any} size={13} color="#16A34A" />
@@ -178,13 +191,13 @@ export function UpgradePromptModal({ visible, onClose, feature, used = 0, limit 
 
           {/* CTA */}
           <TouchableOpacity
-            style={[s.upgradeBtn, { backgroundColor: growthPlan.color }]}
+            style={[s.upgradeBtn, { backgroundColor: nextPlan.color }]}
             onPress={handleUpgrade}
             activeOpacity={0.85}
           >
             <Ionicons name="rocket-outline" size={18} color="#fff" />
             <Text style={s.upgradeBtnText}>
-              Upgrade to Growth — {formatNaira(growthPlan.priceNaira)}/mo
+              Upgrade to {nextPlan.name} — {formatNaira(nextPlan.priceNaira)}/mo
             </Text>
           </TouchableOpacity>
 

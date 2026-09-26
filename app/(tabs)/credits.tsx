@@ -16,8 +16,10 @@ import { formatNairaCompact as formatNaira, formatDate } from "../../src/utils/f
 import { ProductPickerInput } from "../../src/components/common/ProductPickerInput";
 import { CustomerPickerInput } from "../../src/components/common/CustomerPickerInput";
 import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";
+import { RemainingUsageNote } from "../../src/components/common/RemainingUsageNote";
 import { checkWhatsAppLimit, recordWhatsAppUsage, checkActiveCreditsLimit } from "../../src/utils/usageLimits";
 import { useUIStore } from "../../src/store/uiStore";
+import { PlanId } from "../../src/config/plans";
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -66,6 +68,12 @@ export default function CreditsScreen() {
 
   const planId = user?.subscription?.plan ?? "free";
   const [allActiveCount, setAllActiveCount] = useState(0);
+  const [whatsappUsage, setWhatsappUsage] = useState<{ used: number; limit: number } | null>(null);
+
+  const refreshWhatsappUsage = useCallback(() => {
+    if (!user) return;
+    checkWhatsAppLimit(user._id, planId).then(({ used, limit }) => setWhatsappUsage({ used, limit }));
+  }, [user, planId]);
 
   const initials2 = (user?.name ?? "U").split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 
@@ -79,6 +87,7 @@ export default function CreditsScreen() {
     loadCredits();
     loadStats();
     refreshAllActiveCount();
+    refreshWhatsappUsage();
   }, []);
 
   const sendWhatsApp = async (credit: ICredit, phone: string) => {
@@ -103,6 +112,7 @@ export default function CreditsScreen() {
       if (!canOpen) { Alert.alert("WhatsApp Not Found", "WhatsApp is not installed on this device."); return; }
       await Linking.openURL(url);
       await recordWhatsAppUsage(user._id);
+      refreshWhatsappUsage();
     } catch {
       Alert.alert("Error", "Could not open WhatsApp. Please try again.");
     }
@@ -148,6 +158,16 @@ export default function CreditsScreen() {
             <Text style={styles.progressText}>{stats?.percentCollected ?? 0}% Collected</Text>
           </View>
         </View>
+
+        <RemainingUsageNote
+          used={allActiveCount}
+          limit={checkActiveCreditsLimit(allActiveCount, planId).limit}
+          label="active credit slots"
+          period="none"
+        />
+        {whatsappUsage && (
+          <RemainingUsageNote used={whatsappUsage.used} limit={whatsappUsage.limit} label="WhatsApp reminders" />
+        )}
 
         {/* Overdue Card */}
         <View style={[styles.statusCard, { backgroundColor: "#FEF2F2", borderColor: "#FECACA" }]}>
@@ -304,6 +324,7 @@ export default function CreditsScreen() {
         feature="whatsapp"
         used={upgradeUsed}
         limit={upgradeLimit}
+        currentPlanId={planId}
       />
 
       <AddPhoneModal
@@ -552,7 +573,7 @@ interface CreditDraft {
 function AddCreditModal({ visible, onClose, colors, styles, allActiveCount, planId }: {
   visible: boolean; onClose: () => void;
   colors: ReturnType<typeof useTheme>; styles: ReturnType<typeof makeStyles>;
-  allActiveCount: number; planId: string;
+  allActiveCount: number; planId: PlanId;
 }) {
   const { addCredit } = useCreditStore();
   const { user } = useAuthStore();
@@ -826,6 +847,13 @@ function AddCreditModal({ visible, onClose, colors, styles, allActiveCount, plan
               </View>
             </View>
 
+            <RemainingUsageNote
+              used={allActiveCount}
+              limit={checkActiveCreditsLimit(allActiveCount, planId).limit}
+              label="active credit slots"
+              period="none"
+            />
+
             {draftSavedAt ? (
               <TouchableOpacity
                 style={[styles.saveBtn, loading && { opacity: 0.6 }]}
@@ -851,6 +879,7 @@ function AddCreditModal({ visible, onClose, colors, styles, allActiveCount, plan
         feature="credits"
         used={upgradeUsed}
         limit={upgradeLimit}
+        currentPlanId={planId}
       />
 
       <DatePickerModal

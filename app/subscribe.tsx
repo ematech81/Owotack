@@ -10,6 +10,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSubscriptionStore } from "../src/store/subscriptionStore";
 import { useAuthStore } from "../src/store/authStore";
 import { PLANS, PlanConfig, PlanId, formatLimit } from "../src/config/plans";
+import { BillingInterval } from "../src/services/subscriptionService";
 import { colors } from "../src/constants/colors";
 import { formatNaira } from "../src/utils/formatters";
 import { PaymentWebView } from "../src/components/common/PaymentWebView";
@@ -258,15 +259,21 @@ const frS = StyleSheet.create({
 
 // ─── Plan Card ────────────────────────────────────────────────────────────────
 
-function PlanCard({ plan, isCurrent, isActive, checkingOut, onSelect }: {
+function PlanCard({ plan, isCurrent, isActive, checkingOut, billingInterval, onSelect }: {
   plan: PlanConfig;
   isCurrent: boolean;
   isActive: boolean;
   checkingOut: PlanId | null;
+  billingInterval: BillingInterval;
   onSelect: () => void;
 }) {
   const isHighlighted = plan.highlight && !isCurrent;
   const isLoading = checkingOut === plan.id;
+
+  const isYearly = billingInterval === "yearly" && !!plan.yearlyPriceNaira;
+  const yearlySavingsPct = plan.yearlyPriceNaira && plan.priceNaira > 0
+    ? Math.round((1 - plan.yearlyPriceNaira / (plan.priceNaira * 12)) * 100)
+    : 0;
 
   return (
     <View style={[
@@ -293,9 +300,20 @@ function PlanCard({ plan, isCurrent, isActive, checkingOut, onSelect }: {
             </View>
             <View style={{ flex: 1, marginRight: 8 }}>
               <Text style={[pcS.planName, { color: plan.color }]}>{plan.name}</Text>
-              <Text style={pcS.planPrice}>
-                {plan.priceNaira === 0 ? "Always Free" : `${formatNaira(plan.priceNaira)} / month`}
-              </Text>
+              {plan.priceNaira === 0 ? (
+                <Text style={pcS.planPrice}>Always Free</Text>
+              ) : isYearly ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <Text style={pcS.planPrice}>{formatNaira(plan.yearlyPriceNaira!)} / year</Text>
+                  {yearlySavingsPct > 0 && (
+                    <View style={[pcS.savePill, { backgroundColor: plan.color + "20" }]}>
+                      <Text style={[pcS.savePillText, { color: plan.color }]}>Save {yearlySavingsPct}%</Text>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <Text style={pcS.planPrice}>{formatNaira(plan.priceNaira)} / month</Text>
+              )}
               <Text style={pcS.planTagline}>{plan.tagline}</Text>
             </View>
           </View>
@@ -383,6 +401,8 @@ const pcS = StyleSheet.create({
   },
   planName: { fontSize: 18, fontWeight: "900", letterSpacing: -0.2 },
   planPrice: { fontSize: 12, color: colors.textSecondary, fontWeight: "600", marginTop: 2 },
+  savePill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: D.radius.full, marginTop: 2 },
+  savePillText: { fontSize: 9, fontWeight: "800" },
   planTagline: { fontSize: 11, color: colors.textMuted, fontWeight: "500", marginTop: 4, lineHeight: 16 },
   currentBadge: {
     flexDirection: "row", alignItems: "center", gap: 4,
@@ -439,6 +459,53 @@ const trustS = StyleSheet.create({
   label: { fontSize: 10, color: colors.textMuted, fontWeight: "600", textAlign: "center" },
 });
 
+// ─── Billing Interval Toggle ──────────────────────────────────────────────────
+
+function IntervalToggle({ value, onChange }: {
+  value: BillingInterval;
+  onChange: (v: BillingInterval) => void;
+}) {
+  return (
+    <View style={intS.wrap}>
+      <PressScale onPress={() => onChange("monthly")} style={{ flex: 1 }}>
+        <View style={[intS.option, value === "monthly" && [intS.optionActive, { backgroundColor: colors.primary }]]}>
+          <Text style={[intS.optionText, value === "monthly" && intS.optionTextActive]}>Monthly</Text>
+        </View>
+      </PressScale>
+      <PressScale onPress={() => onChange("yearly")} style={{ flex: 1 }}>
+        <View style={[intS.option, value === "yearly" && [intS.optionActive, { backgroundColor: colors.primary }]]}>
+          <Text style={[intS.optionText, value === "yearly" && intS.optionTextActive]}>Yearly</Text>
+          <View style={intS.saveBadge}>
+            <Text style={intS.saveBadgeText}>Save more</Text>
+          </View>
+        </View>
+      </PressScale>
+    </View>
+  );
+}
+
+const intS = StyleSheet.create({
+  wrap: {
+    flexDirection: "row", gap: 6,
+    backgroundColor: colors.surface,
+    borderRadius: D.radius.lg, padding: 5,
+    marginBottom: 16,
+    ...D.shadow.soft,
+  },
+  option: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    paddingVertical: 10, borderRadius: D.radius.md,
+  },
+  optionActive: {},
+  optionText: { fontSize: 13, fontWeight: "700", color: colors.textSecondary },
+  optionTextActive: { color: "#fff" },
+  saveBadge: {
+    backgroundColor: "#16A34A20",
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: D.radius.full,
+  },
+  saveBadgeText: { fontSize: 9, fontWeight: "800", color: "#16A34A" },
+});
+
 // ─── Loading Screen ───────────────────────────────────────────────────────────
 
 function LoadingScreen() {
@@ -489,6 +556,7 @@ export default function SubscribeScreen() {
   } = useSubscriptionStore();
 
   const [checkingOut, setCheckingOut] = useState<PlanId | null>(null);
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
 
   // WebView state
   const [webviewVisible,     setWebviewVisible]     = useState(false);
@@ -519,10 +587,13 @@ export default function SubscribeScreen() {
 
     setCheckingOut(planId);
     try {
-      const planPrice = PLANS.find((p) => p.id === planId)?.priceNaira ?? 0;
+      const targetPlan = PLANS.find((p) => p.id === planId);
+      const planPrice = billingInterval === "yearly" && targetPlan?.yearlyPriceNaira
+        ? targetPlan.yearlyPriceNaira
+        : targetPlan?.priceNaira ?? 0;
       pendingPlanPrice.current = planPrice;
       afEvents.initiatedCheckout(planPrice);
-      const { paymentLink, txRef } = await initializeCheckout(planId);
+      const { paymentLink, txRef } = await initializeCheckout(planId, billingInterval);
       setWebviewPaymentLink(paymentLink);
       setWebviewTxRef(txRef);
       setWebviewVisible(true);
@@ -583,6 +654,8 @@ export default function SubscribeScreen() {
         <View style={mainS.body}>
           <TrustBadges />
 
+          <IntervalToggle value={billingInterval} onChange={setBillingInterval} />
+
           {PLANS.map((plan) => {
             const isCurrent = plan.id === currentPlan;
             const isActive  = status?.status === "active" && isCurrent;
@@ -594,6 +667,7 @@ export default function SubscribeScreen() {
                 isCurrent={isCurrent}
                 isActive={isActive}
                 checkingOut={checkingOut}
+                billingInterval={billingInterval}
                 onSelect={() => handleUpgrade(plan.id)}
               />
             );
@@ -608,7 +682,9 @@ export default function SubscribeScreen() {
 
           <Text style={mainS.legal}>
             Payments are processed securely via Korapay.{"\n"}
-            Subscriptions renew monthly. Cancel anytime.
+            {billingInterval === "yearly"
+              ? "Subscriptions renew yearly. Cancel anytime."
+              : "Subscriptions renew monthly. Cancel anytime."}
           </Text>
 
           <View style={{ height: 40 }} />

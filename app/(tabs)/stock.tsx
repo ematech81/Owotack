@@ -15,6 +15,7 @@ import { draftStorage } from "../../src/utils/draft";
 import { DraftBanner } from "../../src/components/common/DraftBanner";
 import { checkStockLimit } from "../../src/utils/usageLimits";
 import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";
+import { RemainingUsageNote } from "../../src/components/common/RemainingUsageNote";
 import { useStockStore } from "../../src/store/stockStore";
 import { IStockItem } from "../../src/services/stockService";
 import { useTheme } from "../../src/hooks/useTheme";
@@ -930,6 +931,15 @@ export default function StockScreen() {
         {/* Hero Stats */}
         <HeroStatsCard stats={stats} colors={colors} />
 
+        <View style={{ paddingHorizontal: 16 }}>
+          <RemainingUsageNote
+            used={items.length}
+            limit={checkStockLimit(items.length, planId).limit}
+            label="stock item slots"
+            period="none"
+          />
+        </View>
+
         {/* Search */}
         <SearchBar value={search} onChange={setSearch} colors={colors} />
 
@@ -1012,6 +1022,7 @@ export default function StockScreen() {
         feature="stock"
         used={items.length}
         limit={checkStockLimit(items.length, planId).limit}
+        currentPlanId={planId}
       />
     </SafeAreaView>
   );

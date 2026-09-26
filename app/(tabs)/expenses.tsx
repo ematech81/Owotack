@@ -18,6 +18,7 @@ import { EXPENSE_CATEGORIES } from "../../src/constants/categories";
 import { VoiceInput } from "../../src/components/common/VoiceInput";
 import { OfflineBanner } from "../../src/components/common/OfflineBanner";
 import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";
+import { RemainingUsageNote } from "../../src/components/common/RemainingUsageNote";
 import { checkExpensesLimit, recordExpenseUsage } from "../../src/utils/usageLimits";
 import { saveErrorMessage } from "../../src/utils/errorMessages";
 import { useUIStore } from "../../src/store/uiStore";
@@ -151,6 +152,12 @@ export default function ExpensesScreen() {
   const [upgradeVisible, setUpgradeVisible] = useState(false);
   const [upgradeUsed, setUpgradeUsed] = useState(0);
   const [upgradeLimit, setUpgradeLimit] = useState(0);
+  const [expensesUsage, setExpensesUsage] = useState<{ used: number; limit: number } | null>(null);
+
+  const refreshExpensesUsage = useCallback(() => {
+    if (!user) return;
+    checkExpensesLimit(user._id, planId).then(({ used, limit }) => setExpensesUsage({ used, limit }));
+  }, [user, planId]);
 
   // ── Load ────────────────────────────────────────────────────────────────────
 
@@ -213,7 +220,7 @@ export default function ExpensesScreen() {
     setAddMode("manual");
   };
 
-  const openAdd = () => { resetModal(); setShowAdd(true); };
+  const openAdd = () => { resetModal(); setShowAdd(true); refreshExpensesUsage(); };
   const closeAdd = () => { setShowAdd(false); resetModal(); };
 
   const updateItem = (i: number, field: keyof ExpenseItem, val: string) =>
@@ -260,6 +267,7 @@ export default function ExpensesScreen() {
         });
         await recordExpenseUsage(user._id);
       }
+      refreshExpensesUsage();
       closeAdd();
       load();
     } catch (err) {
@@ -498,6 +506,10 @@ export default function ExpensesScreen() {
                 </>
               )}
 
+              {expensesUsage && (
+                <RemainingUsageNote used={expensesUsage.used} limit={expensesUsage.limit} label="expense entries" />
+              )}
+
               {/* Submit */}
               {(addMode === "manual" || parsedResult) && (
                 <TouchableOpacity
@@ -533,6 +545,7 @@ export default function ExpensesScreen() {
         feature="expenses"
         used={upgradeUsed}
         limit={upgradeLimit}
+        currentPlanId={planId}
       />
     </SafeAreaView>
   );

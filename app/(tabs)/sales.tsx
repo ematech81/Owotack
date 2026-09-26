@@ -27,6 +27,7 @@ import { draftStorage } from "../../src/utils/draft";
 import { saveCustomerName } from "../../src/utils/customers";
 import { checkSalesLimit, checkVoiceAccess, recordSaleUsage } from "../../src/utils/usageLimits";
 import { UpgradePromptModal, UpgradeFeature } from "../../src/components/common/UpgradePromptModal";
+import { RemainingUsageNote } from "../../src/components/common/RemainingUsageNote";
 import { SaleItem } from "../../src/types";
 import { useUIStore } from "../../src/store/uiStore";
 
@@ -1135,6 +1136,7 @@ export default function AddSaleScreen() {
   const [upgradeFeature, setUpgradeFeature] = useState<UpgradeFeature>("sales");
   const [upgradeUsed, setUpgradeUsed] = useState(0);
   const [upgradeLimit, setUpgradeLimit] = useState(0);
+  const [salesUsage, setSalesUsage] = useState<{ used: number; limit: number } | null>(null);
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<"fixed" | "percent">("fixed");
   const [tax, setTax] = useState(0);
@@ -1168,6 +1170,13 @@ export default function AddSaleScreen() {
       setDraftSavedAt(stored.savedAt);
     });
   }, [draftKey]));
+
+  const refreshSalesUsage = useCallback(() => {
+    if (!user) return;
+    checkSalesLimit(user._id, planId).then(({ used, limit }) => setSalesUsage({ used, limit }));
+  }, [user, planId]);
+
+  useFocusEffect(useCallback(() => { refreshSalesUsage(); }, [refreshSalesUsage]));
 
   // ── Stock overflow check ───────────────────────────────────────────────────
 
@@ -1282,6 +1291,7 @@ export default function AddSaleScreen() {
         userId: user._id,
       });
       await recordSaleUsage(user._id);
+      refreshSalesUsage();
       if (customerName.trim()) saveCustomerName(user._id, customerName.trim());
       if (draftKey) await draftStorage.clear(draftKey);
       setDraftSavedAt(null); setTranscript(""); setParsedResult(null);
@@ -1347,6 +1357,7 @@ export default function AddSaleScreen() {
       });
       if (customerName.trim()) saveCustomerName(user._id, customerName.trim());
       await recordSaleUsage(user._id);
+      refreshSalesUsage();
       if (draftKey) await draftStorage.clear(draftKey);
       setDraftSavedAt(null); setManualItems([emptyItem()]); setCollapsedItems([false]);
       setCustomerName(""); setSaleDate(new Date());
@@ -1430,6 +1441,12 @@ export default function AddSaleScreen() {
             }}
           />
         </LinearGradient>
+
+        {salesUsage && (
+          <View style={{ paddingHorizontal: 16 }}>
+            <RemainingUsageNote used={salesUsage.used} limit={salesUsage.limit} label="sales entries" />
+          </View>
+        )}
 
         {/* ── Body ─────────────────────────────────────────────────────────── */}
         <ScrollView
@@ -1599,6 +1616,7 @@ export default function AddSaleScreen() {
         feature={upgradeFeature}
         used={upgradeUsed}
         limit={upgradeLimit}
+        currentPlanId={planId}
       />
 
       {/* ── Voice Input Tip Modal ──────────────────────────────────────────── */}

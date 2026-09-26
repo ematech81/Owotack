@@ -2,14 +2,18 @@ import api from "./api";
 import { ApiResponse } from "../types";
 import { PlanId } from "../config/plans";
 
+export type BillingInterval = "monthly" | "yearly";
+
 export interface SubscriptionStatus {
   plan: PlanId;
   status: "active" | "inactive" | "cancelled" | "expired";
   startDate?: string;
   expiresAt?: string;
+  billingInterval?: BillingInterval;
   planDetails: {
     name: string;
     priceNaira: number;
+    yearlyPriceNaira?: number;
     badge?: string;
   };
 }
@@ -25,8 +29,8 @@ export const subscriptionService = {
     return res.data.data;
   },
 
-  async initialize(planId: PlanId): Promise<CheckoutResult> {
-    const res = await api.post<ApiResponse<CheckoutResult>>(`/subscription/initialize/${planId}`);
+  async initialize(planId: PlanId, interval: BillingInterval = "monthly"): Promise<CheckoutResult> {
+    const res = await api.post<ApiResponse<CheckoutResult>>(`/subscription/initialize/${planId}`, { interval });
     return res.data.data;
   },
 

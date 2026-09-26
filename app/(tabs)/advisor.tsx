@@ -14,6 +14,7 @@ import { AppStatusBar } from "../../src/components/common/AppStatusBar";
 import { chatErrorMessage, voiceErrorMessage } from "../../src/utils/errorMessages";
 import { checkAIAccess, checkAIChatLimit, recordAIChatUsage } from "../../src/utils/usageLimits";
 import { UpgradePromptModal } from "../../src/components/common/UpgradePromptModal";
+import { RemainingUsageNote } from "../../src/components/common/RemainingUsageNote";
 
 type RecState = "idle" | "recording" | "processing";
 
@@ -81,9 +82,17 @@ export default function AdvisorScreen() {
   const [upgradeVisible, setUpgradeVisible] = useState(false);
   const [upgradeUsed, setUpgradeUsed] = useState(0);
   const [upgradeLimit, setUpgradeLimit] = useState(0);
+  const [aiUsage, setAiUsage] = useState<{ used: number; limit: number } | null>(null);
 
   const planId = user?.subscription?.plan ?? "free";
   const hasAIAccess = checkAIAccess(planId);
+
+  const refreshAiUsage = useCallback(() => {
+    if (!user) return;
+    checkAIChatLimit(user._id, planId).then(({ used, limit }) => setAiUsage({ used, limit }));
+  }, [user, planId]);
+
+  useEffect(() => { refreshAiUsage(); }, [refreshAiUsage]);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -171,6 +180,7 @@ export default function AdvisorScreen() {
         return;
       }
       await recordAIChatUsage(user._id);
+      refreshAiUsage();
     }
 
     // Cancel any previous stream before starting a new one
@@ -396,6 +406,12 @@ export default function AdvisorScreen() {
             <Ionicons name="chevron-forward" size={16} color="#7C3AED" />
           </TouchableOpacity>
         ) : (
+          <>
+          {aiUsage && (
+            <View style={{ paddingHorizontal: 16, backgroundColor: colors.surface }}>
+              <RemainingUsageNote used={aiUsage.used} limit={aiUsage.limit} label="AI chats" period="day" />
+            </View>
+          )}
           <View style={[styles.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
             <TouchableOpacity style={styles.addBtn}>
               <Ionicons name="add-circle-outline" size={26} color={colors.textMuted} />
@@ -440,6 +456,7 @@ export default function AdvisorScreen() {
               <Ionicons name="arrow-forward" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
+          </>
         )}
       </KeyboardAvoidingView>
 
@@ -449,6 +466,7 @@ export default function AdvisorScreen() {
         feature="ai"
         used={upgradeUsed}
         limit={upgradeLimit}
+        currentPlanId={planId}
       />
     </SafeAreaView>
   );
